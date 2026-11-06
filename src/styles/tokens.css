@@ -1,0 +1,61 @@
+/* ============================================================
+   SangeetPremi design tokens — Claymorphism, premium dark theme
+   Created and developed by SPOOKEYfr.
+   ============================================================ */
+:root {
+  /* surfaces */
+  --bg-0: #101114;
+  --bg-1: #17181d;
+  --bg-2: #1e2027;
+  --bg-3: #262933;
+  --surface-raised: #2b2e38;
+  --surface-inset: #131418;
+
+  /* text */
+  --text-1: #f2f3f7;
+  --text-2: #b9bcc8;
+  --text-3: #7d8090;
+
+  /* musical accents — restrained, premium */
+  --accent: #8b7cf6;          /* soft violet */
+  --accent-2: #5fd4c4;        /* teal */
+  --accent-warm: #e8a87c;     /* warm amber */
+  --danger: #e06c75;
+  --success: #7fc98f;
+
+  --accent-soft: rgba(139, 124, 246, 0.14);
+  --accent-2-soft: rgba(95, 212, 196, 0.12);
+
+  /* claymorphism shadows */
+  --shadow-raised:
+    6px 6px 14px rgba(0, 0, 0, 0.42),
+    -4px -4px 10px rgba(255, 255, 255, 0.045);
+  --shadow-raised-sm:
+    3px 3px 8px rgba(0, 0, 0, 0.38),
+    -2px -2px 6px rgba(255, 255, 255, 0.04);
+  --shadow-inset:
+    inset 4px 4px 10px rgba(0, 0, 0, 0.45),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.035);
+  --shadow-pressed:
+    inset 3px 3px 7px rgba(0, 0, 0, 0.5),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.03);
+
+  /* radii */
+  --r-xl: 28px;
+  --r-lg: 22px;
+  --r-md: 16px;
+  --r-sm: 12px;
+  --r-xs: 9px;
+
+  /* type */
+  --font: 'Outfit', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fs-hero: 30px;
+  --fs-title: 21px;
+  --fs-body: 14.5px;
+  --fs-small: 12.5px;
+  --fs-micro: 11px;
+
+  --sp-1: 6px; --sp-2: 10px; --sp-3: 16px; --sp-4: 24px; --sp-5: 36px; --sp-6: 48px;
+  --dur-fast: 140ms; --dur-med: 260ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

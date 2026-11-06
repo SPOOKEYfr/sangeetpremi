@@ -4,6 +4,7 @@ export interface RouteContext<P = Record<string, string>> {
   query: URLSearchParams;
   body: unknown; // parsed JSON body (undefined for GET)
   rawBody: Buffer;
+  req: import('node:http').IncomingMessage;
 }
 
 export type RouteHandler<P = Record<string, string>> = (ctx: RouteContext<P>) => unknown | Promise<unknown>;

@@ -112,10 +112,16 @@ describe('discover body validator', () => {
 });
 
 describe('logger privacy', () => {
-  it('ip fingerprints are hashed, not raw', () => {
-    const fp = Logger.ipFingerprint('203.0.113.9');
+  it('ip fingerprints are keyed HMACs, not raw or brute-forceable hashes', () => {
+    const fp = Logger.ipFingerprint('203.0.113.9', 'server-secret-salt');
     expect(fp).toMatch(/^[0-9a-f]{12}$/);
     expect(fp).not.toContain('203.0.113.9');
+    // deterministic for same salt, different for different salt (unsalted sha256 would not be)
+    expect(fp).toBe(Logger.ipFingerprint('203.0.113.9', 'server-secret-salt'));
+    expect(fp).not.toBe(Logger.ipFingerprint('203.0.113.9', 'other-salt'));
+    // and not equal to the plain unsalted sha256 (which IS brute-forceable)
+    const plain = require('node:crypto').createHash('sha256').update('203.0.113.9').digest('hex').slice(0, 12);
+    expect(fp).not.toBe(plain);
   });
   it('respects log level', () => {
     const lines: string[] = [];

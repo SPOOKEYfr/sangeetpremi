@@ -16,6 +16,14 @@ export interface BackendConfig {
     ipWindowMs: number;
   };
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  /** Only these peer IPs may supply X-Forwarded-For. Empty by default (direct connections). */
+  trustedProxies: string[];
+  /** Server-only key for HMAC IP fingerprints. Random per boot if unset (dev); set via env in production. */
+  ipFingerprintSalt: string;
+}
+
+function randomSalt(): string {
+  return `dev-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
 function intFromEnv(env: NodeJS.ProcessEnv, name: string, def: number, min: number, max: number): number {
@@ -53,5 +61,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BackendConfig 
       ipWindowMs: intFromEnv(env, 'RATE_LIMIT_IP_WINDOW_MS', 60_000, 1000, 86_400_000),
     },
     logLevel: logLevel as BackendConfig['logLevel'],
+    trustedProxies: (env.TRUSTED_PROXIES ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    ipFingerprintSalt: env.IP_FINGERPRINT_SALT ?? randomSalt(),
   };
 }

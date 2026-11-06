@@ -4,7 +4,7 @@ Product: **SangeetPremi** — intelligent artist-based music discovery & playlis
 generation browser extension. Created and developed by **SPOOKEYfr**.
 
 ## Current phase
-**v0.3 — Phase B (backend foundation) IMPLEMENTED and locally tested.**
+**v0.3 — Phase B.1 (security remediation & hardening) IMPLEMENTED and tested.**
 See `backend/README.md` and `docs/ARCHITECTURE_V0.3.md` §11. Nothing deployed;
 no credentials, quota extensions, OAuth verification or paid services created
 (all require SPOOKEYfr's approval).
@@ -55,6 +55,29 @@ no credentials, quota extensions, OAuth verification or paid services created
 - [x] MetadataProvider/VideoProvider interfaces + NOT_IMPLEMENTED stubs (no live external calls)
 - [x] Method-specific YouTube quota table + in-memory QuotaAccountant (search/uploads/general buckets, PT reset)
 - [x] 40 backend tests passing; backend tsc clean; live local run verified; extension still 56/56 + build green
+
+## Completed in v0.3 Phase B.1 (remediation of independent review)
+- [x] Stored XSS: libraryView artist chips now built with safe DOM helper (`utils/dom.ts` h());
+      unescaped artist.country / compareView row values / modal title escaped; 8 XSS regression
+      tests (img onerror, script, style, svg onload, quote-breakout, entities) — 64/64 extension tests pass
+- [x] wipeAllData removes ALL owned keys incl. `sangeetpremi.oauthToken` (OWNED_STORAGE_KEYS);
+      Settings wipe does best-effort remote revoke first, local deletion guaranteed; regression test
+- [x] Inline `onerror` handlers removed from trackCard/trackListEditor (MV3 CSP blocks them);
+      proper error listeners added
+- [x] Quota model corrected to June 2026 buckets (search 100 calls/day, uploads 100/day,
+      10k general units, writes 50, PT midnight reset) in extension api.ts + backend quota.ts;
+      pagination charged per call; docs/capacity estimates revised
+- [x] Backend hardening: rate limit BEFORE body parsing; bounded limiter state (maxKeys eviction);
+      injected clock used; UUID rotation cannot bypass IP limit; preflight rate-limited;
+      trusted-proxy-only X-Forwarded-For; keyed-HMAC IP fingerprints (salt from env only);
+      413 still delivered properly
+- [x] Errors: malformed percent-encoding → 400 INVALID_INPUT; QuotaExhausted → 503 QUOTA_EXHAUSTED
+      structured; no stack traces in envelopes
+- [x] Job ownership: 256-bit capability tokens (only SHA-256 hash stored), expiry + revocation,
+      401/403 on job/events/refresh; tests for unauthorized/invalid/expired
+- [x] Packaging fixed + verified (archive at repo root, no self-inclusion, manifest present,
+      version matches); manifest version sourced from package.json; version-consistency test
+- [x] PRIVACY.md / TERMS.md drafts (YouTube ToS link, retention, OAuth disconnect, placeholders marked)
 
 ## Next implementation tasks
 0. (Requires approval) Phase C: wire real providers server-side behind /v1 — NOT started

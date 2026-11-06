@@ -84,7 +84,7 @@ export class TrackListEditor {
       <button class="row-check" title="Select" aria-label="Select track" style="width:22px;height:22px;border-radius:8px;border:1.5px solid ${checked ? 'var(--accent)' : 'rgba(255,255,255,.2)'};background:${checked ? 'var(--accent)' : 'transparent'};color:#14121f;display:flex;align-items:center;justify-content:center;flex:none">${checked ? icon('check', 13) : ''}</button>
       <button class="row-drag" title="Drag to reorder" aria-label="Drag to reorder" style="cursor:grab;background:none;border:none;color:var(--text-3);padding:4px;flex:none">${icon('drag', 16)}</button>
       <div style="position:relative;flex:none">
-        <img src="${escapeHtml(t.thumbnail ?? '')}" alt="" width="96" height="54" loading="lazy" style="border-radius:12px;object-fit:cover;background:var(--bg-3);box-shadow:var(--shadow-raised-sm)" onerror="this.style.visibility='hidden'"/>
+        <img class="tle-thumb" src="${escapeHtml(t.thumbnail ?? '')}" alt="" width="96" height="54" loading="lazy" style="border-radius:12px;object-fit:cover;background:var(--bg-3);box-shadow:var(--shadow-raised-sm)"/>
         ${t.durationSeconds ? `<span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;padding:1px 6px;border-radius:6px">${formatDuration(t.durationSeconds)}</span>` : ''}
       </div>
       <div style="flex:1;min-width:0">
@@ -102,6 +102,9 @@ export class TrackListEditor {
         <button class="btn btn-ghost btn-sm row-rm" title="Remove from playlist" aria-label="Remove from playlist" style="padding:6px 8px">${icon('x', 14)}</button>
       </div>`;
 
+    row.querySelector('.tle-thumb')?.addEventListener('error', (e) => {
+      (e.target as HTMLImageElement).style.visibility = 'hidden';
+    });
     row.querySelector('.row-check')!.addEventListener('click', () => {
       this.cb.onToggleSelect(t.videoId);
     });

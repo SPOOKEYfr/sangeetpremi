@@ -24,6 +24,8 @@ export const err = {
   unsupportedMedia: (msg = 'Content-Type must be application/json') => new ApiError('UNSUPPORTED_MEDIA_TYPE', msg, 415),
   methodNotAllowed: (msg = 'Method not allowed') => new ApiError('METHOD_NOT_ALLOWED', msg, 405),
   notImplemented: (msg: string) => new ApiError('NOT_IMPLEMENTED', msg, 501),
+  unauthorized: (msg = 'Authentication required') => new ApiError('UNAUTHORIZED', msg, 401),
+  forbidden: (msg = 'Not allowed') => new ApiError('FORBIDDEN', msg, 403),
   internal: (msg = 'Internal server error') => new ApiError('INTERNAL', msg, 500),
 };
 

@@ -55,9 +55,9 @@ export function renderCompare(el: HTMLElement): void {
 
     const row = (label: string, va: string, vb: string, verified: boolean) => `
       <div style="display:grid;grid-template-columns:180px 1fr 1fr;gap:10px;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.05);align-items:center">
-        <div style="color:var(--text-2);font-size:13px">${label}${verified ? '' : ' <span class="badge warm" style="font-size:9.5px">est.</span>'}</div>
-        <div style="font-weight:600;font-size:13.5px">${va}</div>
-        <div style="font-weight:600;font-size:13.5px">${vb}</div>
+        <div style="color:var(--text-2);font-size:13px">${escapeHtml(label)}${verified ? '' : ' <span class="badge warm" style="font-size:9.5px">est.</span>'}</div>
+        <div style="font-weight:600;font-size:13.5px">${escapeHtml(va)}</div>
+        <div style="font-weight:600;font-size:13.5px">${escapeHtml(vb)}</div>
       </div>`;
 
     const catRows = DISCOVERY_CATEGORIES.map((c) =>

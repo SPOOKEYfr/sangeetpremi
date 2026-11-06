@@ -3,6 +3,24 @@
 All notable changes to SangeetPremi are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.1] — 2026-11-06 (Phase B.1 — security remediation, not deployed)
+### Fixed
+- Stored HTML injection via artist names (libraryView) and other unescaped metadata; safe DOM
+  helper added; XSS regression tests with malicious payloads
+- wipeAllData() now removes every owned key including the OAuth token; remote revoke is
+  best-effort and separate from guaranteed local deletion
+- Inline onerror image handlers replaced with CSP-safe error listeners
+- YouTube quota accounting corrected to the June 2026 bucket model (search/uploads/general),
+  per-page charging, Pacific-time reset, in extension and backend
+- Backend rate limiting: enforced before body parsing, bounded state, injected clock, IP limit
+  cannot be bypassed by UUID rotation, preflights limited, trusted-proxy-only X-Forwarded-For,
+  keyed-HMAC IP fingerprints
+- Structured errors: 400 for malformed percent-encoding, 503 QUOTA_EXHAUSTED, no stack traces
+- Discovery job ownership via expiring, revocable 256-bit capability tokens (hash-only storage)
+- Packaging script fixed and verified (no self-inclusion, correct output path, version check)
+- Manifest version now sourced from package.json with a consistency test
+- Added draft PRIVACY.md and TERMS.md (marked for owner/legal review)
+
 ## [0.3.0] — 2026-11-06 (Phase B — backend foundation, not deployed)
 ### Added
 - `backend/`: zero-runtime-dependency Node.js API skeleton (node:http, TypeScript strict)
@@ -38,6 +56,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - 35 unit tests; production build + packaging script
 - Documentation: README, setup guide, project status
 
+[0.3.1]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.1
 [0.3.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.1.0

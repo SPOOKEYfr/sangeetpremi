@@ -1,13 +1,17 @@
 /**
- * Rate limiting interfaces + a safe in-memory sliding-window implementation.
- * Two independent limits: per anonymous client id (when present) and per IP.
- * In-memory is correct for a single-instance Phase B deployment; a shared
- * store (e.g. Postgres/Redis) is a Phase D concern for multi-instance.
+ * Bounded sliding-window rate limiting with an injectable clock.
+ *
+ * Hardening (Phase B.1):
+ * - State is bounded: maxKeys with oldest-key eviction, so random client ids
+ *   cannot grow the Map forever.
+ * - The injected clock is actually used (testable time).
+ * - Two independent limiters: per anonymous client id and per (trusted) IP.
+ *   A UUID is an identifier, NOT authentication — rotating UUIDs does not
+ *   bypass the IP limit, and IP limits are the server-side backstop.
  */
 import { err } from '../http/responses.js';
 
 export interface RateLimiter {
-  /** Returns true if the request is allowed, false if it should be rejected. */
   check(key: string, now?: number): boolean;
   reset(): void;
 }
@@ -18,17 +22,25 @@ export class SlidingWindowRateLimiter implements RateLimiter {
   constructor(
     private max: number,
     private windowMs: number,
+    private maxKeys = 100_000,
+    private now: () => number = Date.now,
   ) {}
 
-  check(key: string, now = Date.now()): boolean {
-    const windowStart = now - this.windowMs;
-    const existing = (this.hits.get(key) ?? []).filter((t) => t > windowStart);
+  check(key: string, now?: number): boolean {
+    const t = now ?? this.now();
+    const windowStart = t - this.windowMs;
+    const existing = (this.hits.get(key) ?? []).filter((ts) => ts > windowStart);
     if (existing.length >= this.max) {
       this.hits.set(key, existing);
       return false;
     }
-    existing.push(now);
+    existing.push(t);
     this.hits.set(key, existing);
+    // Bounded state: evict oldest keys when over capacity.
+    if (this.hits.size > this.maxKeys) {
+      const oldest = [...this.hits.entries()].sort((a, b) => (a[1][0] ?? 0) - (b[1][0] ?? 0)).slice(0, this.hits.size - this.maxKeys);
+      for (const [k] of oldest) this.hits.delete(k);
+    }
     return true;
   }
 
@@ -48,16 +60,17 @@ export class RateLimitMiddleware {
   private byClient: RateLimiter;
   private byIp: RateLimiter;
 
-  constructor(cfg: RateLimitConfig, now?: () => number) {
-    this.byClient = new SlidingWindowRateLimiter(cfg.clientMax, cfg.clientWindowMs);
-    this.byIp = new SlidingWindowRateLimiter(cfg.ipMax, cfg.ipWindowMs);
-    void now;
+  constructor(cfg: RateLimitConfig, now: () => number = Date.now) {
+    this.byClient = new SlidingWindowRateLimiter(cfg.clientMax, cfg.clientWindowMs, 100_000, now);
+    this.byIp = new SlidingWindowRateLimiter(cfg.ipMax, cfg.ipWindowMs, 100_000, now);
   }
 
-  /** Throws RATE_LIMITED when either limit is exceeded. */
-  enforce(identity: { clientId?: string; ip: string }): void {
-    if (identity.clientId && !this.byClient.check(`c:${identity.clientId}`)) throw err.rateLimited();
-    if (!this.byIp.check(`ip:${identity.ip}`)) throw err.rateLimited('Too many requests from this network. Please try again shortly.');
+  /** Throws RATE_LIMITED when either limit is exceeded. Call BEFORE reading the body. */
+  enforce(identity: { clientId?: string; ip: string }, now?: number): void {
+    if (identity.clientId && !this.byClient.check(`c:${identity.clientId}`, now)) throw err.rateLimited();
+    if (!this.byIp.check(`ip:${identity.ip}`, now)) {
+      throw err.rateLimited('Too many requests from this network. Please try again shortly.');
+    }
   }
 
   reset(): void {

@@ -8,11 +8,15 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { Router, type RouteContext } from './router.js';
 import { ApiError, err, fail, ok, type ApiResponse } from './responses.js';
 import { Logger } from '../logger.js';
+import { QuotaExhausted } from '../quota.js';
 
 export interface AppContext {
   logger: Logger;
   maxBodyBytes: number;
-  /** Middleware-style hook run before routing: may throw ApiError. */
+  ipSalt: string;
+  /** Runs BEFORE the body is read (rate limiting must not wait for body parsing). May throw ApiError. */
+  preBody?: (req: IncomingMessage) => void;
+  /** Runs after body parsing, before routing. May throw ApiError. */
   beforeRoute?: (req: IncomingMessage, body: Buffer) => void;
   /** Hook to enrich the route context (client id, ip) — set by app.ts. */
   enrich?: (ctx: RouteContext) => void;
@@ -51,6 +55,8 @@ export function createApiServer(router: Router, appCtx: AppContext): Server {
     const method = req.method ?? 'GET';
     const ip = req.socket.remoteAddress ?? 'unknown';
     try {
+      // Cheap protections first: identity + rate limits BEFORE any body processing.
+      appCtx.preBody?.(req);
       let rawBody: Buffer = Buffer.alloc(0);
       let body: unknown;
       if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
@@ -67,23 +73,35 @@ export function createApiServer(router: Router, appCtx: AppContext): Server {
       }
       appCtx.beforeRoute?.(req, rawBody);
 
-      const match = router.match(method, path);
+      let match: ReturnType<Router['match']>;
+      try {
+        match = router.match(method, path);
+      } catch {
+        throw err.invalidInput('Malformed percent-encoding in request path');
+      }
       if (!match) {
         if (router.hasPath(path)) throw err.methodNotAllowed();
         throw err.notFound(`No route for ${method} ${path}`);
       }
-      const ctx: RouteContext = { params: match.params, query: url.searchParams, body, rawBody };
+      const ctx: RouteContext = { params: match.params, query: url.searchParams, body, rawBody, req };
       appCtx.enrich?.(ctx);
       const result = await match.handler(ctx);
       const payload = result === undefined ? ok({}) : (result as { ok: true }).ok === true ? result : ok(result);
       sendJson(res, 200, payload as ApiResponse<unknown>);
-      appCtx.logger.info('request', { method, path, status: 200, durMs: Date.now() - started, ipFp: Logger.ipFingerprint(ip) });
+      appCtx.logger.info('request', { method, path, status: 200, durMs: Date.now() - started, ipFp: Logger.ipFingerprint(ip, appCtx.ipSalt) });
     } catch (e) {
+      if (e instanceof QuotaExhausted) {
+        // Structured, honest capacity error — never a fake success, never a raw 500.
+        const payload = fail('QUOTA_EXHAUSTED', `YouTube API ${e.bucket} quota exhausted for today (limit ${e.limit}). Resets at midnight Pacific Time.`, { bucket: e.bucket });
+        sendJson(res, 503, payload);
+        appCtx.logger.warn('quota_exhausted', { method, path, bucket: e.bucket });
+        return;
+      }
       const ae = e instanceof ApiError ? e : err.internal();
       if (!(e instanceof ApiError)) appCtx.logger.error('unhandled', { method, path, msg: (e as Error).message });
       const status = ae.status;
       sendJson(res, status, fail(ae.code, ae.message, ae.details), { 'Content-Type': 'application/json; charset=utf-8' });
-      appCtx.logger.warn('request_error', { method, path, status, code: ae.code, durMs: Date.now() - started, ipFp: Logger.ipFingerprint(ip) });
+      appCtx.logger.warn('request_error', { method, path, status, code: ae.code, durMs: Date.now() - started, ipFp: Logger.ipFingerprint(ip, appCtx.ipSalt) });
     }
   });
 }

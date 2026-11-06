@@ -292,7 +292,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         ${s.artist.thumbnail ? `<img class="avatar" src="${escapeHtml(s.artist.thumbnail)}" width="64" height="64" alt=""/>` : ''}
         <div style="flex:1;min-width:200px">
           <h2>${escapeHtml(s.artist.name)}</h2>
-          <div style="color:var(--text-3);font-size:12.5px;margin-top:4px">${s.artist.country ?? ''} ${s.artist.subscriberCount ? '· ' + (s.artist.subscriberCount / 1e6).toFixed(1) + 'M subscribers' : ''} ${stats.yearRange.min ? `· ${stats.yearRange.min}–${stats.yearRange.max}` : ''}</div>
+          <div style="color:var(--text-3);font-size:12.5px;margin-top:4px">${escapeHtml(s.artist.country ?? '')} ${s.artist.subscriberCount ? '· ' + (s.artist.subscriberCount / 1e6).toFixed(1) + 'M subscribers' : ''} ${stats.yearRange.min ? `· ${stats.yearRange.min}–${stats.yearRange.max}` : ''}</div>
         </div>
         ${s.artist.id !== 'multi' ? `<button class="btn btn-ghost btn-sm" id="d-fav">${icon('heart', 15)} ${store.library?.artists[s.artist.id]?.favorite ? 'Favorited' : 'Favorite'}</button>` : ''}
         <button class="btn btn-ghost btn-sm" id="d-refresh" ${state.running ? 'disabled' : ''}>${icon('sparkles', 15)} Refresh discovery</button>

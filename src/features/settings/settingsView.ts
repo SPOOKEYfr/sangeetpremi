@@ -145,6 +145,9 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
         label: 'Erase everything',
         kind: 'danger',
         onClick: async () => {
+          // Best-effort remote revocation of the Google grant; local deletion
+          // proceeds regardless of the outcome (and never claims revocation happened).
+          try { await revoke(); } catch { /* local wipe still guaranteed */ }
           await wipeAllData();
           toast('All local data erased', 'info');
           location.reload();

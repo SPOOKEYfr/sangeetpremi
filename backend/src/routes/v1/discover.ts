@@ -1,4 +1,7 @@
+import type { IncomingMessage } from 'node:http';
 import type { RouteHandler } from '../../http/router.js';
+import type { JobStore } from '../../jobs.js';
+import { requireCapability } from '../../jobs.js';
 import { err } from '../../http/responses.js';
 import { optionalInt, requireEnum, requireString, requireStringArray } from '../../middleware/validate.js';
 
@@ -53,23 +56,35 @@ export const createDiscoveryHandler: RouteHandler = (ctx) => {
   throw err.notImplemented('Discovery orchestration is Phase C. The request was validated successfully.');
 };
 
-/** GET /v1/discover/:id — contract established. */
-export const getDiscoveryHandler: RouteHandler = (ctx) => {
-  const id = requireJobId(ctx.params.id);
-  void id;
-  throw err.notImplemented('Discovery jobs are Phase C.');
-};
+/** Ownership check shared by job sub-resources. 401 for missing/malformed capability, 403 for invalid/expired. */
+export function requireJobAccess(req: IncomingMessage, jobs: JobStore, id: string): void {
+  const cap = requireCapability(req);
+  if (!jobs.verify(id, cap)) throw err.forbidden('Invalid, expired or revoked job capability.');
+}
 
-/** POST /v1/discover/:id/refresh — contract established. */
-export const refreshDiscoveryHandler: RouteHandler = (ctx) => {
-  const id = requireJobId(ctx.params.id);
-  void id;
-  throw err.notImplemented('Incremental refresh is Phase C.');
-};
+/** GET /v1/discover/:id — contract established; capability-protected. */
+export function getDiscoveryHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
+  return (ctx) => {
+    const id = requireJobId(ctx.params.id);
+    requireJobAccess(req, jobs, id);
+    throw err.notImplemented('Discovery jobs are Phase C.');
+  };
+}
 
-/** GET /v1/discover/:id/events — SSE contract established. */
-export const discoveryEventsHandler: RouteHandler = (ctx) => {
-  const id = requireJobId(ctx.params.id);
-  void id;
-  throw err.notImplemented('SSE progress stream is Phase C.');
-};
+/** POST /v1/discover/:id/refresh — capability-protected (prevents unauthorized refresh). */
+export function refreshDiscoveryHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
+  return (ctx) => {
+    const id = requireJobId(ctx.params.id);
+    requireJobAccess(req, jobs, id);
+    throw err.notImplemented('Incremental refresh is Phase C.');
+  };
+}
+
+/** GET /v1/discover/:id/events — SSE contract; capability-protected. */
+export function discoveryEventsHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
+  return (ctx) => {
+    const id = requireJobId(ctx.params.id);
+    requireJobAccess(req, jobs, id);
+    throw err.notImplemented('SSE progress stream is Phase C.');
+  };
+}

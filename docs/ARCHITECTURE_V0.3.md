@@ -144,11 +144,20 @@ No paid resource will be created without SPOOKEYfr's authorization.
 
 ### Operating cost estimates (rough, monthly)
 
-| Users | Assumed activity | YouTube quota need | Infra cost |
+Realistic workload model (June 2026 buckets): a Standard discovery ≈ 10
+`search.list` calls (10 search-bucket calls) + a few 1-unit metadata calls.
+Uploads-playlist enumeration replaces most searches with 1-unit
+`playlistItems.list` pages. At 2 discoveries/user/day with 60% cache hits:
+
+| Users | Search-bucket calls/day | General units/day | Infra cost |
 |---|---|---|---|
-| 100 | 2 discoveries/user/day, ~60% cache hits | ~80k units/day → **quota extension required (audit)** | $5–20 |
-| 1,000 | same | ~800k–2M units/day → **large extension; shift to uploads-playlist enumeration to cut 100×** | $20–60 |
-| 10,000 | same | multi-million units/day; likely needs strong caching + possibly reduced depth defaults | $100–300 |
+| 100 | ~80 (within default 100 — but little headroom) | ~5k (within 10k) | $5–20 |
+| 1,000 | ~800 → **search-bucket extension required (audit)** | ~50k → **general extension required** | $20–60 |
+| 10,000 | ~8,000 → large extension + uploads-first strategy mandatory | ~500k → large extension | $100–300 |
+
+Capacity estimates assume aggressive caching, request deduplication and
+uploads-playlist-first enumeration; without them the search bucket caps out at
+~100 discoveries/day/project.
 
 Launch dependency: **quota extension request + OAuth verification** must be
 approved before public release beyond ~100 OAuth users.

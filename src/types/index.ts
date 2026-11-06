@@ -145,8 +145,18 @@ export const DEFAULT_SETTINGS: Settings = {
   youtubeClientIdConfigured: false,
 };
 
+/**
+ * YouTube quota usage — method-specific buckets (June 2026 model):
+ * search.list and videos.insert have their own 100-calls/day buckets;
+ * all other methods share the general 10,000-unit/day pool. Reset: midnight PT.
+ */
+export type QuotaBucket = 'search' | 'uploads' | 'general';
+
 export interface QuotaUsage {
-  date: string; // YYYY-MM-DD
-  used: number;
-  limit: number;
+  date: string; // YYYY-MM-DD (America/Los_Angeles)
+  search: number;
+  uploads: number;
+  general: number;
 }
+
+export const QUOTA_LIMITS = { search: 100, uploads: 100, general: 10_000 } as const;

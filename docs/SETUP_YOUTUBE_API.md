@@ -16,10 +16,18 @@ runtime, and they are stored only in your browser's local extension storage.
 3. Optionally restrict by HTTP referrer to your extension id (`chrome-extension://<id>/`).
 4. In SangeetPremi: **Settings → YouTube connection → YouTube Data API key** → paste the key → *Save credentials*.
 
-Quota: the default daily quota is **10,000 units**. A search costs 100 units,
-so one Standard discovery (~10 searches) costs ~1,000 units. SangeetPremi
-tracks usage locally and stops before exceeding the limit. You can request a
-quota increase in Cloud Console if needed.
+Quota (June 2026 bucket model, verified Nov 2026): each project gets per day
+**100 `search.list` calls** (dedicated search bucket), **100 `videos.insert`
+calls** (upload bucket), and **10,000 units shared by all other methods**
+(general bucket; `videos.list`/`channels.list`/`playlistItems.list` cost 1 unit
+per call, up to 50 ids; writes like `playlists.insert`/`playlistItems.insert`
+cost 50). Every paginated page is an additional call. Quota resets at midnight
+**Pacific Time** and cannot be purchased — increases require Google's audit
+form. SangeetPremi tracks per-bucket usage locally and stops before exceeding a
+limit. Cost-efficient catalogue enumeration via a channel's uploads playlist
+(`playlistItems.list`, 1 unit/50 videos) is preferred over search, with
+search kept as a controlled fallback — uploads enumeration is not a complete
+catalogue.
 
 ## 3. Create an OAuth client id (optional — for "Create on YouTube")
 

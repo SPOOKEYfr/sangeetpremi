@@ -15,6 +15,11 @@ Created and developed by **SPOOKEYfr**.
 - 🎤 **Artist discovery engine** — disambiguation, relevance scoring, 14 categories, role detection (primary / featured / playback singer / …)
 - 🧹 **Smart duplicate detection** — strict / balanced / off modes, duplicates reviewable and restorable
 - 📀 **Playlist builder** — select, sort, save, duplicate, export (JSON), play on YouTube, or create a real YouTube playlist via OAuth
+- 👥 **Multi-artist discovery** — comma-separated artists, combined collections with correct attribution
+- 🔍 **Smart filters** — category, language (heuristics labelled), release-year range (verified)
+- ♻️ **Incremental refresh** — revisit an artist, review new tracks, merge without touching existing playlists
+- ⚖️ **Artist comparison** — verified vs. estimated stats side by side
+- 🖱️ **Pro drag-and-drop playlist builder** — reorder, bulk edit, search, sort, stats
 - 🗂️ **Persistent library** — saved artists, discovery history, favorites (stored locally, exportable)
 - 🧱 **Claymorphism UI** — premium dark design across popup, side panel and full dashboard
 - 🔒 **Privacy-first** — no tracking, no secrets in code, credentials stay on-device; YouTube access only via the official Data API v3 with quota tracking
@@ -62,7 +67,7 @@ sangeetpremi/
 ├── src/
 │   ├── app/            # dashboard shell + hash router
 │   ├── components/     # logo, icons, track cards, modal, toast
-│   ├── features/       # home, discovery, library, playlists, settings, about
+│   ├── features/       # home, discovery, library, playlists, compare, settings, about
 │   ├── services/       # youtube (api, oauth), discovery (engine, classify, dedup), storage, config
 │   ├── state/          # observable store
 │   ├── styles/         # claymorphism design system

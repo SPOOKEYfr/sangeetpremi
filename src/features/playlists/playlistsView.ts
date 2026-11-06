@@ -1,26 +1,34 @@
-/** Playlist builder & manager. */
+/** Playlist builder & manager — v0.2: drag-and-drop reorder, bulk ops, filters, stats. */
 import { store } from '../../state/store';
-import { trackCard } from '../../components/trackCard';
 import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
 import { icon } from '../../components/icons';
+import { TrackListEditor } from '../../components/trackListEditor';
 import { escapeHtml, playlistUrl, watchUrl } from '../../utils/sanitize';
+import { formatDuration } from '../../utils/normalize';
+import { filterByCategory, searchTracks, sortTracks } from '../../services/discovery/filters';
+import { DISCOVERY_CATEGORIES, type DiscoveryCategory, type Playlist, type Track } from '../../types';
 import { loadConfig } from '../../services/config';
 import { YouTubeClient } from '../../services/youtube/api';
 import { authorize, getValidToken } from '../../services/youtube/oauth';
-import type { Playlist } from '../../types';
+
+interface DetailState {
+  filterText: string;
+  category: DiscoveryCategory | 'all';
+  sortKey: 'order' | 'title' | 'publishedAt' | 'viewCount' | 'duration';
+}
 
 export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void {
   const playlists = Object.values(store.library?.playlists ?? {}).sort((a, b) => b.updatedAt - a.updatedAt);
   const openId = params.get('id');
 
   el.innerHTML = `
-  <div class="fade-in" style="max-width:1060px">
+  <div class="fade-in" style="max-width:1100px">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px">
       <h2 style="flex:1">Playlists</h2>
       <button class="btn btn-primary" id="pl-new">${icon('plus', 16)} New playlist</button>
     </div>
-    <div style="display:grid;grid-template-columns:280px 1fr;gap:22px;align-items:start">
+    <div style="display:grid;grid-template-columns:270px 1fr;gap:22px;align-items:start">
       <div id="pl-list" style="display:flex;flex-direction:column;gap:10px"></div>
       <div id="pl-detail"></div>
     </div>
@@ -32,11 +40,10 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
   if (!playlists.length) {
     listEl.innerHTML = `<div class="clay clay-sm empty-state" style="padding:30px"><div class="glyph">📀</div><p style="font-size:13px">No playlists yet.<br/>Discover an artist and create one.</p></div>`;
   }
-
   for (const p of playlists) {
     const b = document.createElement('button');
-    b.className = `clay clay-sm pl-item${p.id === openId ? '' : ''}`;
-    b.style.cssText = 'padding:14px 16px;text-align:left;border:none;display:flex;justify-content:space-between;align-items:center;gap:8px';
+    b.className = 'clay clay-sm';
+    b.style.cssText = 'padding:14px 16px;text-align:left;border:none;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer';
     if (p.id === openId) b.style.outline = '2px solid var(--accent)';
     b.innerHTML = `<span style="font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name)}</span><span class="badge muted">${p.trackVideoIds.length}</span>`;
     b.addEventListener('click', () => renderPlaylists(el, new URLSearchParams({ id: p.id })));
@@ -48,8 +55,7 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
     body.innerHTML = `<label class="label">Playlist name</label><input id="np-name" class="input" placeholder="My playlist"/>`;
     openModal('New playlist', body, [
       {
-        label: 'Create',
-        kind: 'primary',
+        label: 'Create', kind: 'primary',
         onClick: () => {
           const name = (body.querySelector('#np-name') as HTMLInputElement).value.trim();
           if (!name) return;
@@ -63,14 +69,20 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
   });
 
   const current = openId ? store.library?.playlists[openId] : playlists[0];
-  if (current) renderDetail(detailEl, current);
+  if (current) renderDetail(detailEl, current, { filterText: '', category: 'all', sortKey: 'order' });
   else detailEl.innerHTML = `<div class="clay clay-sm empty-state" style="padding:40px"><div class="glyph">🎵</div><h3>Select a playlist</h3></div>`;
 }
 
-function renderDetail(el: HTMLElement, p: Playlist): void {
+function resolveTracks(p: Playlist): { tracks: Track[]; missing: number } {
   const all = store.allTracks();
-  const tracks = p.trackVideoIds.map((id) => all.find((t) => t.videoId === id)).filter((t): t is NonNullable<typeof t> => !!t);
-  const missing = p.trackVideoIds.length - tracks.length;
+  const byId = new Map(all.map((t) => [t.videoId, t]));
+  const tracks = p.trackVideoIds.map((id) => byId.get(id)).filter((t): t is Track => !!t);
+  return { tracks, missing: p.trackVideoIds.length - tracks.length };
+}
+
+function renderDetail(el: HTMLElement, p: Playlist, st: DetailState): void {
+  const { tracks, missing } = resolveTracks(p);
+  const totalDuration = tracks.reduce((s, t) => s + (t.durationSeconds ?? 0), 0);
 
   el.innerHTML = `
   <section class="clay" style="padding:24px 28px">
@@ -78,6 +90,7 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
     <textarea id="pd-desc" class="textarea" placeholder="Description…">${escapeHtml(p.description ?? '')}</textarea>
     <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;align-items:center">
       <span class="badge">${p.trackVideoIds.length} tracks</span>
+      <span class="badge muted">${formatDuration(totalDuration) || '—'} total</span>
       ${p.youtubePlaylistId ? `<span class="badge teal">on YouTube</span>` : ''}
       ${missing ? `<span class="badge warm">${missing} not in library</span>` : ''}
       <span style="flex:1"></span>
@@ -85,29 +98,115 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
       <button class="btn btn-ghost btn-sm" id="pd-dup">${icon('plus', 15)} Duplicate</button>
       <button class="btn btn-ghost btn-sm" id="pd-export">${icon('download', 15)} Export</button>
       <button class="btn btn-ghost btn-sm" id="pd-del">${icon('trash', 15)} Delete</button>
-      <a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(p.trackVideoIds)}" target="_blank" rel="noopener">${icon('play', 15)} Play on YouTube</a>
+      <a class="btn btn-ghost btn-sm" href="${playlistUrl(p.trackVideoIds)}" target="_blank" rel="noopener">${icon('play', 15)} Play on YouTube</a>
       <button class="btn btn-teal btn-sm" id="pd-yt">${icon('youtube', 15)} Create on YouTube</button>
     </div>
-    <div id="pd-list" style="display:flex;flex-direction:column;gap:10px"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <input id="pd-search" class="input" style="width:210px;padding:8px 13px;font-size:13px" placeholder="Search in playlist…" value="${escapeHtml(st.filterText)}"/>
+      <select id="pd-cat" class="select" style="width:auto;padding:8px 13px;font-size:13px">
+        <option value="all">All categories</option>
+        ${DISCOVERY_CATEGORIES.map((c) => `<option value="${c.id}" ${st.category === c.id ? 'selected' : ''}>${c.label}</option>`).join('')}
+      </select>
+      <select id="pd-sort" class="select" style="width:auto;padding:8px 13px;font-size:13px">
+        <option value="order" ${st.sortKey === 'order' ? 'selected' : ''}>Manual order</option>
+        <option value="viewCount" ${st.sortKey === 'viewCount' ? 'selected' : ''}>Most popular</option>
+        <option value="publishedAt" ${st.sortKey === 'publishedAt' ? 'selected' : ''}>Newest</option>
+        <option value="title" ${st.sortKey === 'title' ? 'selected' : ''}>A–Z</option>
+        <option value="duration" ${st.sortKey === 'duration' ? 'selected' : ''}>Longest</option>
+      </select>
+      <span style="flex:1"></span>
+      <button class="chip" id="pd-selall">Select all</button>
+      <button class="chip" id="pd-selclear">Clear</button>
+      <button class="btn btn-danger btn-sm" id="pd-rmsel">${icon('trash', 14)} Remove selected</button>
+    </div>
+    <div id="pd-stats" style="font-size:12px;color:var(--text-3);margin:4px 2px 12px"></div>
+    <div id="pd-list"></div>
   </section>`;
 
-  const listEl = el.querySelector('#pd-list') as HTMLElement;
-  if (!tracks.length) {
-    listEl.innerHTML = `<div class="empty-state" style="padding:30px"><div class="glyph">🎧</div><p>This playlist is empty. Add tracks from a discovery session.</p></div>`;
-  }
-  tracks.forEach((t, i) => {
-    const removeBtn = `<button class="btn btn-ghost btn-sm pd-rm" data-i="${i}" title="Remove">${icon('x', 14)}</button>`;
-    const card = trackCard(t, { extra: removeBtn });
-    listEl.appendChild(card);
-  });
-  listEl.querySelectorAll('.pd-rm').forEach((b) =>
-    b.addEventListener('click', () => {
-      const i = Number((b as HTMLElement).dataset.i);
-      p.trackVideoIds.splice(i, 1);
+  // --- editable track list ---
+  let view = [...tracks];
+  const editor = new TrackListEditor({
+    onOrderChange: (ids) => {
+      if (st.sortKey === 'order') {
+        // persist manual ordering
+        p.trackVideoIds = ids;
+        store.updatePlaylist(p);
+        toast('Order saved', 'success');
+      } else {
+        // sorting view: reorder current view only
+        const byId = new Map(view.map((t) => [t.videoId, t]));
+        view = ids.map((id) => byId.get(id)!).filter(Boolean);
+        editor.setTracks(view, editor.getSelected());
+        updateStats();
+      }
+    },
+    onRemove: (videoId) => {
+      p.trackVideoIds = p.trackVideoIds.filter((id) => id !== videoId);
       store.updatePlaylist(p);
-      renderDetail(el, p);
-    }),
-  );
+      renderDetail(el, p, st);
+      toast('Track removed', 'info');
+    },
+    onToggleSelect: (videoId) => {
+      const sel = editor.getSelected();
+      if (sel.has(videoId)) sel.delete(videoId);
+      else sel.add(videoId);
+      editor.setTracks(view, sel);
+      updateStats();
+    },
+  });
+
+  const applyView = () => {
+    let v = [...tracks];
+    if (st.sortKey !== 'order') v = sortTracks(v, st.sortKey);
+    v = filterByCategory(v, st.category);
+    v = searchTracks(v, st.filterText);
+    view = v;
+    editor.setTracks(view, editor.getSelected());
+    updateStats();
+  };
+
+  const updateStats = () => {
+    const sel = editor.getSelected();
+    const selDuration = [...sel].reduce((s, id) => s + (view.find((t) => t.videoId === id)?.durationSeconds ?? 0), 0);
+    const statsEl = el.querySelector('#pd-stats');
+    if (statsEl) {
+      statsEl.textContent = `${view.length} shown · ${sel.size} selected${sel.size ? ` (${formatDuration(selDuration)})` : ''} · ${tracks.length} total in playlist`;
+    }
+    const rmBtn = el.querySelector('#pd-rmsel') as HTMLButtonElement;
+    if (rmBtn) rmBtn.disabled = sel.size === 0;
+  };
+
+  applyView();
+  el.querySelector('#pd-list')!.appendChild(editor.root);
+
+  el.querySelector('#pd-search')?.addEventListener('input', (e) => { st.filterText = (e.target as HTMLInputElement).value; applyView(); });
+  el.querySelector('#pd-cat')?.addEventListener('change', (e) => { st.category = (e.target as HTMLSelectElement).value as DetailState['category']; applyView(); });
+  el.querySelector('#pd-sort')?.addEventListener('change', (e) => {
+    st.sortKey = (e.target as HTMLSelectElement).value as DetailState['sortKey'];
+    if (st.sortKey !== 'order') {
+      // sorting is view-only until the user drags; keep stored order intact
+      applyView();
+    } else applyView();
+  });
+  el.querySelector('#pd-selall')?.addEventListener('click', () => { editor.setSelectedAll(); updateStats(); });
+  el.querySelector('#pd-selclear')?.addEventListener('click', () => { editor.clearSelected(); updateStats(); });
+  el.querySelector('#pd-rmsel')?.addEventListener('click', () => {
+    const sel = editor.getSelected();
+    if (!sel.size) return;
+    openModal('Remove selected tracks', `<p>Remove ${sel.size} selected track${sel.size > 1 ? 's' : ''} from “${escapeHtml(p.name)}”? This only affects this playlist.</p>`, [
+      {
+        label: `Remove ${sel.size}`, kind: 'danger',
+        onClick: () => {
+          p.trackVideoIds = p.trackVideoIds.filter((id) => !sel.has(id));
+          store.updatePlaylist(p);
+          renderDetail(el, p, st);
+          toast(`${sel.size} track${sel.size > 1 ? 's' : ''} removed`, 'success');
+        },
+      },
+      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+    ]);
+  });
 
   el.querySelector('#pd-save')?.addEventListener('click', () => {
     p.name = (el.querySelector('#pd-name') as HTMLInputElement).value.trim() || p.name;
@@ -128,11 +227,9 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
   });
   el.querySelector('#pd-export')?.addEventListener('click', () => {
     const data = {
-      name: p.name,
-      description: p.description,
+      name: p.name, description: p.description,
       tracks: p.trackVideoIds.map((id) => ({ videoId: id, url: watchUrl(id) })),
-      exportedAt: new Date().toISOString(),
-      app: 'SangeetPremi by SPOOKEYfr',
+      exportedAt: new Date().toISOString(), app: 'SangeetPremi by SPOOKEYfr',
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -154,10 +251,7 @@ async function createOnYouTube(p: Playlist): Promise<void> {
     }
     let token = await getValidToken();
     if (!token) token = await authorize();
-    if (!token) {
-      toast('YouTube authorization was cancelled.', 'error');
-      return;
-    }
+    if (!token) { toast('YouTube authorization was cancelled.', 'error'); return; }
     const client = new YouTubeClient(cfg.youtubeApiKey);
     toast('Creating playlist on YouTube…', 'info');
     const ytId = await client.createPlaylist(token, p.name, p.description ?? '', 'private');

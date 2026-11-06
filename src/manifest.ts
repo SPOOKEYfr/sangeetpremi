@@ -14,7 +14,7 @@ import { defineManifest } from '@crxjs/vite-plugin';
 export default defineManifest({
   manifest_version: 3,
   name: 'SangeetPremi',
-  version: '0.1.0',
+  version: '0.2.0',
   description:
     'Search an artist. Discover their music. Enjoy everything in one place. Intelligent YouTube music discovery and playlist generation.',
   icons: {

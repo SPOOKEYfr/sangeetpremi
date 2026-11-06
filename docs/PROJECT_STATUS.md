@@ -4,46 +4,38 @@ Product: **SangeetPremi** — intelligent artist-based music discovery & playlis
 generation browser extension. Created and developed by **SPOOKEYfr**.
 
 ## Current phase
-**Phase 3/4 complete (MVP functional)** — foundation, premium UI, discovery
-engine and playlist system are implemented and tested. Working toward Phase 5
-(advanced features) and Phase 6 (release hardening).
+**v0.2 — Stability, validation & feature expansion** (in progress on
+`arena/c3ad703b-sangeetpremi`; v0.1 MVP merged to main).
 
-## Completed features
-- [x] Manifest V3 extension scaffold (popup, side panel, background worker, content script, dashboard/options page)
-- [x] Claymorphism dark design system (tokens, primitives, components) + generated brand icons
-- [x] Dashboard with hash routing: Home, Discover, Library, Playlists, Settings, About
-- [x] Artist disambiguation (never silently picks the wrong artist)
-- [x] YouTube Data API v3 client: search, video/channel details, quota tracking, rate limiting, error handling
-- [x] Discovery engine with Quick/Standard/Deep depths, progress events, discovery report
-- [x] Classification into 14 categories + artist role detection (primary/featured/playback/…)
-- [x] Smart deduplication (strict/balanced/off) with restorable duplicates
-- [x] Playlist builder: create/rename/duplicate/delete, reorder-ready track list, local save, JSON export, "Play on YouTube", optional OAuth "Create on YouTube"
-- [x] Persistent library (artists, sessions, playlists, favorites, history) in chrome.storage.local
-- [x] Settings: theme, defaults, categories, credentials (runtime-only), backup/restore, data wipe
-- [x] About page crediting SPOOKEYfr
-- [x] Unit tests (35) for normalize/dedup/classify/sanitize/storage
-- [x] Production build + packaging script
+## Completed in v0.2
+- [x] Playlist builder: HTML5 drag-and-drop reordering with drop indicator + keyboard-accessible ↑/↓ moves, persisted ordering, bulk select/remove, per-playlist search, category filter, 5 sort modes, selection statistics
+- [x] Multi-artist discovery (comma-separated queries) with per-track attribution preserved and safe cross-artist dedup (only shared recordings collapse; unrelated same-title songs never merge)
+- [x] Language filter (script-verified for non-Latin, labelled "est." for Latin heuristics), release-year range filter (verified from `publishedAt`; undated tracks excluded, never guessed)
+- [x] Explainable related-artist suggestions (only channels appearing in discovered collaborations, with a human-readable reason)
+- [x] Incremental "Refresh discovery": diffs fresh candidates against the stored session, shows a review panel, merges only approved new tracks; existing tracks/playlists never auto-modified
+- [x] Artist comparison view (verified counts vs. clearly-labelled estimates; genre explicitly not estimated)
+- [x] 21 new unit tests (56 total, all passing): language, filters, merge/refresh diffing, stats/related artists
+- [x] `docs/FIREFOX.md` compatibility evaluation (Chrome build untouched; no untested Firefox build shipped)
+- [x] `docs/BROWSER_TESTING.md` — automated-verified vs. manual-unverified test matrix
 
-## In progress
-- [ ] Manual in-browser verification in Chrome/Brave (load unpacked from `dist/`)
+## Verification status
+- TypeScript strict: PASS · Production build: PASS · Unit tests: 56/56 PASS
+- **Real-browser testing: NOT performed** (no browser binaries available in the
+  dev sandbox; downloads blocked). Manual matrix provided in `docs/BROWSER_TESTING.md`.
 
 ## Known bugs
-- None known. (Automated tests cover engine logic; UI verified by build only so far.)
+- None known from automated checks. UI behavior in a real browser is unverified (see above).
 
 ## Missing credentials
-- YouTube Data API key — **user-supplied at runtime** (see `docs/SETUP_YOUTUBE_API.md`); never committed
-- OAuth client id for "Create on YouTube" — **user-supplied at runtime**
+- YouTube Data API key + OAuth client id — user-supplied at runtime (`docs/SETUP_YOUTUBE_API.md`); never committed
 
 ## Technical decisions
-- Vite + @crxjs/vite-plugin, TypeScript strict, zero runtime dependencies (lightweight extension)
-- All YouTube access via official API only; no scraping, no audio extraction, quota-aware client
-- State: tiny observable store over chrome.storage.local; in-memory fallback for dev/tests
-- Discovery pipeline is pure/async and unit-tested independent of the network
-- Firefox: architecture isolates `chrome.*` behind service modules; not yet packaged for Firefox
+- v0.2 added zero runtime dependencies; new logic lives in pure, unit-tested modules (`utils/language`, `services/discovery/{filters,merge,stats}`)
+- Refresh is diff-then-review: the stored session is immutable until the user approves merges
+- Multi-artist merge keeps `track.artist` from the discovering session
+- Language detection carries a confidence label; UI never presents heuristics as fact
 
 ## Next implementation tasks
-1. In-browser smoke test + fix any MV3 runtime issues
-2. Drag-and-drop reordering in playlist builder
-3. Multi-artist discovery, artist comparison, stats dashboard
-4. Language/genre/year filters, smart suggestions, playlist refresh
-5. Firefox packaging (webextensions polyfill) when MV3 support is confirmed
+1. Run the manual browser matrix (Chrome + Brave) and record results
+2. Firefox build per `docs/FIREFOX.md` once testable with `web-ext`
+3. Remaining v0.3 ideas: discovery stats dashboard, backup diffing, playlist sync to YouTube on refresh

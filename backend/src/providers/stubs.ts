@@ -1,6 +1,6 @@
 /** Phase B stubs: providers exist as contracts but are not wired to live services. */
 import { err } from '../http/responses.js';
-import type { ArtistCandidate, MetadataProvider, RecordingMeta, VideoMeta, VideoProvider } from './types.js';
+import type { ArtistCandidate, ChannelMeta, MetadataProvider, RecordingMeta, VideoMeta, VideoProvider } from './types.js';
 
 const notImplemented = (what: string) =>
   err.notImplemented(`${what} is not implemented yet — provider wiring is Phase C. No live external calls are made in Phase B.`);
@@ -17,6 +17,9 @@ export class StubMetadataProvider implements MetadataProvider {
 
 export class StubVideoProvider implements VideoProvider {
   readonly name = 'stub-video';
+  async resolveChannel(): Promise<ChannelMeta[]> {
+    throw notImplemented('VideoProvider.resolveChannel');
+  }
   async searchVideos(): Promise<{ items: VideoMeta[]; nextPageToken?: string }> {
     throw notImplemented('VideoProvider.searchVideos');
   }

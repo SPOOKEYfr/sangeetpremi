@@ -4,7 +4,7 @@ Product: **SangeetPremi** — intelligent artist-based music discovery & playlis
 generation browser extension. Created and developed by **SPOOKEYfr**.
 
 ## Current phase
-**v0.3 — Phase B.1 (security remediation & hardening) IMPLEMENTED and tested.**
+**v0.3 — Phase C1 (real provider adapters) IMPLEMENTED and mock-tested.** Phase C2 (orchestration) NOT started.
 See `backend/README.md` and `docs/ARCHITECTURE_V0.3.md` §11. Nothing deployed;
 no credentials, quota extensions, OAuth verification or paid services created
 (all require SPOOKEYfr's approval).
@@ -78,6 +78,17 @@ no credentials, quota extensions, OAuth verification or paid services created
 - [x] Packaging fixed + verified (archive at repo root, no self-inclusion, manifest present,
       version matches); manifest version sourced from package.json; version-consistency test
 - [x] PRIVACY.md / TERMS.md drafts (YouTube ToS link, retention, OAuth disconnect, placeholders marked)
+
+## Completed in v0.3 Phase C1
+- [x] `YouTubeVideoProvider` behind VideoProvider: channels.list, playlistItems.list (paginated),
+      search.list (fallback), videos.list; injectable transport; quota reserve-before/release-on-failure;
+      redaction of key from errors; structured provider errors; provenance + 24h expiry on records
+- [x] `MusicBrainzProvider` behind MetadataProvider: artist + recording endpoints, 1 req/s limiter,
+      descriptive UA with contact placeholder, bounded retries, MBID provenance, no invented metadata
+- [x] Atomic quota reservation (reserve/release) preventing concurrent overspend; PT-day buckets
+- [x] Configurable provider availability via env flags; stubs remain default (no live calls without config)
+- [x] 20 new mock-transport provider tests; backend total 75/75 passing; tsc + build clean
+- [x] Extension untouched: 67/67 tests, tsc + build green
 
 ## Next implementation tasks
 0. (Requires approval) Phase C: wire real providers server-side behind /v1 — NOT started

@@ -55,6 +55,22 @@ All responses use the envelope `{ ok: true, data }` / `{ ok: false, error: { cod
   (search bucket 100/day, uploads bucket 100/day, 10,000 general units/day,
   reset midnight Pacific) ready for Phase C/D
 
+## Providers (Phase C1 — real adapters, mock-tested, no live calls in tests)
+
+- `src/providers/youtube.ts` — `YouTubeVideoProvider` (VideoProvider): `channels.list`
+  (channel identification + uploads-playlist id), `playlistItems.list` (paginated uploads
+  enumeration — **not a complete catalogue**; search remains the controlled fallback),
+  `search.list` (fallback), `videos.list` (batched metadata). Server-side key via
+  `SecretProvider` only; key is redacted from all errors; quota reserved **before** each
+  call and released on failure (atomic in the single-instance design); bounded retries,
+  timeouts, defensive normalization, provenance (`source`/`fetchedAt`/`expiresAt`).
+- `src/providers/musicbrainz.ts` — `MusicBrainzProvider` (MetadataProvider): `artist/?query=`,
+  `recording/?query=arid:`. No API key; descriptive User-Agent with owner contact placeholder;
+  ~1 req/s limiter; bounded retries on 503/429; MBIDs preserved; no invented metadata.
+- Providers are selected via `ENABLE_YOUTUBE_PROVIDER` / `ENABLE_MUSICBRAINZ_PROVIDER` env
+  flags; without the flag (or without the secret) the Phase B stubs are used, so no live
+  external call can happen unintentionally.
+
 ## Module structure
 
 ```

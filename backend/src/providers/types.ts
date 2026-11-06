@@ -15,17 +15,34 @@ export interface ArtistCandidate {
   description?: string;
   thumbnail?: string;
   subscriberCount?: number;
-  source: string; // provenance: which provider supplied this
+  source: string; // provenance: which provider supplied this (e.g. 'musicbrainz', 'youtube')
+  fetchedAt: number; // retrieval timestamp (retention/refresh accounting)
+  expiresAt?: number; // optional cache expiry; permanent caches are NOT permitted for YouTube API data
+}
+
+export interface ChannelMeta {
+  channelId: string;
+  title: string;
+  description?: string;
+  country?: string;
+  uploadsPlaylistId?: string; // contentDetails.relatedPlaylists.uploads — for cheap enumeration
+  subscriberCount?: number;
+  thumbnail?: string;
+  source: string;
+  fetchedAt: number;
+  expiresAt?: number;
 }
 
 export interface RecordingMeta {
-  id: string;
+  id: string; // external provider identifier (e.g. MusicBrainz MBID) — preserved, never invented
   title: string;
   artistId: string;
   releaseGroup?: string;
-  year?: number;
-  language?: string;
+  year?: number; // only when present in source data
+  language?: string; // only when present in source data — never guessed
   source: string;
+  fetchedAt: number;
+  expiresAt?: number;
 }
 
 export interface VideoMeta {
@@ -39,6 +56,7 @@ export interface VideoMeta {
   thumbnail?: string;
   source: string;
   fetchedAt: number; // provenance timestamp for cache expiry
+  expiresAt?: number; // cache expiry; permanent YouTube-data caches are not permitted
 }
 
 export interface MetadataProvider {
@@ -49,7 +67,11 @@ export interface MetadataProvider {
 
 export interface VideoProvider {
   readonly name: string;
+  /** Channel identification via channels.list (1 general unit/call). */
+  resolveChannel(query: string, maxResults?: number): Promise<ChannelMeta[]>;
   searchVideos(query: string, maxResults: number, pageToken?: string): Promise<{ items: VideoMeta[]; nextPageToken?: string }>;
+  /** Uploads-playlist enumeration via channels.list + playlistItems.list (1 unit/page). NOT a complete catalogue. */
+  channelUploads(channelId: string, maxItems: number): Promise<VideoMeta[]>;
   /** Cost-efficient catalogue enumeration: channel uploads playlist (1 unit / 50 videos). Not a complete catalogue — search remains the fallback. */
   channelUploads(channelId: string, maxItems: number): Promise<VideoMeta[]>;
   videoDetails(videoIds: string[]): Promise<VideoMeta[]>;

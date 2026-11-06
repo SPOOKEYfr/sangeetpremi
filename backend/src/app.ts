@@ -14,6 +14,8 @@ import { corsHeaders, isPreflight } from './middleware/cors.js';
 import { NullSecretProvider, type SecretProvider } from './secrets.js';
 import { InMemoryQuotaAccountant, type QuotaAccountant } from './quota.js';
 import { StubMetadataProvider, StubVideoProvider } from './providers/stubs.js';
+import { YouTubeVideoProvider } from './providers/youtube.js';
+import { MusicBrainzProvider } from './providers/musicbrainz.js';
 import { InMemoryJobStore, type JobStore } from './jobs.js';
 import type { MetadataProvider, VideoProvider } from './providers/types.js';
 import { healthHandler } from './routes/v1/health.js';
@@ -44,8 +46,19 @@ export function buildApp(overrides: {
   const config = { ...loadConfig(overrides.env ?? process.env), ...overrides.config };
   const logger = new Logger(config.logLevel);
   const secrets = overrides.secrets ?? new NullSecretProvider();
-  const metadata = overrides.metadata ?? new StubMetadataProvider();
-  const video = overrides.video ?? new StubVideoProvider();
+  // Configurable provider availability: real providers are only selected when
+  // explicitly enabled via env AND the required server-side secret exists.
+  // Default (and any missing credential) = stub, so no live calls can happen
+  // without SPOOKEYfr configuring credentials out-of-band.
+  const env = overrides.env ?? process.env;
+  const metadata =
+    overrides.metadata ??
+    (env.ENABLE_MUSICBRAINZ_PROVIDER === '1' ? new MusicBrainzProvider() : new StubMetadataProvider());
+  const video =
+    overrides.video ??
+    (env.ENABLE_YOUTUBE_PROVIDER === '1'
+      ? new YouTubeVideoProvider({ secrets, quota: overrides.quota ?? new InMemoryQuotaAccountant() })
+      : new StubVideoProvider());
   const quota = overrides.quota ?? new InMemoryQuotaAccountant();
   const rateLimiter = new RateLimitMiddleware(config.rateLimit);
 

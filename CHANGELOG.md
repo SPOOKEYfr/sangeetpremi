@@ -3,6 +3,22 @@
 All notable changes to SangeetPremi are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.2] — 2026-11-06 (Phase C1 — real provider adapters, mock-tested only)
+### Added
+- `backend/src/providers/youtube.ts`: YouTubeVideoProvider — channels.list, playlistItems.list
+  (paginated uploads enumeration, explicitly not a complete catalogue), search.list fallback,
+  videos.list batched metadata; server-side key via SecretProvider with redaction from all errors;
+  quota reserved before each call and released on failure; bounded retries/timeouts; provenance
+  fields (source, fetchedAt, expiresAt)
+- `backend/src/providers/musicbrainz.ts`: MusicBrainzProvider — artist/recording ws/2 endpoints,
+  ~1 req/s rate limiter, SangeetPremi User-Agent with owner contact placeholder, bounded retries,
+  MBID provenance, no invented metadata
+- `backend/src/http/transport.ts`: injectable transport with timeout, bounded body, bounded
+  retries, secret redaction
+- Atomic quota reserve/release in InMemoryQuotaAccountant (concurrency-safe single instance)
+- Provider selection via ENABLE_* env flags; stubs remain default
+- 20 mock-transport provider tests (backend total 75/75); no live calls, no credentials
+
 ## [0.3.1] — 2026-11-06 (Phase B.1 — security remediation, not deployed)
 ### Fixed
 - Stored HTML injection via artist names (libraryView) and other unescaped metadata; safe DOM
@@ -56,6 +72,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - 35 unit tests; production build + packaging script
 - Documentation: README, setup guide, project status
 
+[0.3.2]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.2
 [0.3.1]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.1
 [0.3.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.2.0

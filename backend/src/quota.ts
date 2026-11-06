@@ -42,10 +42,24 @@ export interface QuotaUsage {
   general: number;
 }
 
+export interface QuotaReservation {
+  method: string;
+  bucket: QuotaBucket;
+  units: number;
+}
+
 export interface QuotaAccountant {
   usage(date?: string): QuotaUsage;
   /** Record a call. Throws QuotaExhausted when the relevant bucket would exceed its limit. */
   record(method: string, pages?: number): QuotaUsage;
+  /**
+   * Atomically reserve quota BEFORE an external request. In the supported
+   * single-instance design this synchronous reservation prevents concurrent
+   * requests from overspending the same in-memory bucket. Throws QuotaExhausted.
+   */
+  reserve(method: string, pages?: number): QuotaReservation;
+  /** Release a reservation when the request failed or was never sent (reconcile). */
+  release(res: QuotaReservation): void;
   remaining(): { search: number; uploads: number; general: number };
 }
 
@@ -75,12 +89,21 @@ export class InMemoryQuotaAccountant implements QuotaAccountant {
   }
 
   record(method: string, pages = 1): QuotaUsage {
+    return this.reserve(method, pages) && this.usage();
+  }
+
+  reserve(method: string, pages = 1): QuotaReservation {
     const { units, bucket } = costOf(method, pages);
     const u = this.usage();
     const next = { ...u, [bucket]: u[bucket] + units };
     if (next[bucket] > this.limits[bucket]) throw new QuotaExhausted(bucket, this.limits[bucket]);
-    this.current = next;
-    return { ...next };
+    this.current = next; // synchronous => atomic within the single-instance design
+    return { method, bucket, units };
+  }
+
+  release(res: QuotaReservation): void {
+    const u = this.usage();
+    this.current = { ...u, [res.bucket]: Math.max(0, u[res.bucket] - res.units) };
   }
 
   remaining(): { search: number; uploads: number; general: number } {

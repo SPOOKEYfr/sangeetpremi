@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Features — SangeetPremi</title>
+  <meta name="description" content="Every SangeetPremi feature, described honestly: artist discovery, classification, duplicate detection, filters, playlists, refresh and comparison."/>
+  <link rel="canonical" href="https://sangeetpremi.pages.dev/features.html"/>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="SangeetPremi"/>
+  <meta property="og:title" content="Features — SangeetPremi"/>
+  <meta property="og:description" content="Artist discovery, smart dedup, playlist builder, filters, refresh and comparison — described honestly."/>
+  <meta property="og:image" content="./og-image.png"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="theme-color" content="#060607"/>
+</head>
+<body data-page="features.html">
+  <header class="site-header"><div id="site-nav"></div></header>
+  <main>
+    <section class="section">
+      <div class="wrap">
+        <p class="kicker">Features</p>
+        <h2>What SangeetPremi actually does</h2>
+        <p class="lede">Everything below ships in the extension's current codebase. Nothing here is aspirational marketing copy.</p>
+        <div class="grid">
+          <div class="card"><span class="ico">◎</span><h3>Artist discovery engine</h3><p>Disambiguation when names collide, relevance scoring, 14 categories, and role detection — primary, featured, playback singer and more.</p></div>
+          <div class="card"><span class="ico">✓</span><h3>Smart duplicate detection</h3><p>Strict, balanced or off. Duplicates are collapsed but always reviewable and restorable.</p></div>
+          <div class="card"><span class="ico">☰</span><h3>Playlist builder</h3><p>Select, sort (5 modes), save, duplicate, export as JSON, play on YouTube, or — with your explicit optional OAuth consent — create a real playlist on your YouTube account.</p></div>
+          <div class="card"><span class="ico">❖</span><h3>Multi-artist discovery</h3><p>Comma-separated artists merged into one collection with per-track attribution preserved; only shared recordings ever collapse across artists.</p></div>
+          <div class="card"><span class="ico">⌕</span><h3>Smart filters</h3><p>Category filter, language filter (script-verified for non-Latin scripts, labelled "est." for Latin heuristics), and a release-year range verified from each video's publish date. Undated tracks are excluded, never guessed.</p></div>
+          <div class="card"><span class="ico">⟳</span><h3>Incremental refresh</h3><p>Re-run discovery for an artist: new tracks are shown for your review and merged only when you approve; existing playlists are never auto-modified.</p></div>
+          <div class="card"><span class="ico">⚖</span><h3>Artist comparison</h3><p>Side-by-side stats with verified counts clearly separated from estimates. Genre is explicitly not estimated.</p></div>
+          <div class="card"><span class="ico">✥</span><h3>Drag-and-drop playlists</h3><p>Reorder with drop indicators, keyboard-accessible move buttons, bulk select/remove, per-playlist search and selection statistics.</p></div>
+          <div class="card"><span class="ico">▣</span><h3>Persistent local library</h3><p>Saved artists, discovery history and favorites live only in your browser's local storage — exportable as JSON, erasable in one click.</p></div>
+          <div class="card"><span class="ico">◈</span><h3>Claymorphism UI</h3><p>A premium dark design across the popup, side panel and full dashboard.</p></div>
+          <div class="card"><span class="ico">⛨</span><h3>Official API only</h3><p>YouTube access goes exclusively through the official YouTube Data API v3 with on-device quota tracking. No scraping, no undocumented endpoints, no audio extraction. Playback always happens on YouTube itself.</p></div>
+          <div class="card"><span class="ico">⛨</span><h3>Optional local backend</h3><p>A zero-dependency Node.js companion API exists for development (local only, not deployed). Normal extension use does not require it.</p></div>
+        </div>
+        <div class="notice">
+          <strong>Not claimed:</strong>
+          <p>No user counts, no testimonials, no "compliant with YouTube policy" certification (policy interpretation is documented in the repo, not certified here), and no production backend — the public service is the extension itself.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer" class="site-footer"></footer>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

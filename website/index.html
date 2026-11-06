@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SangeetPremi — Search an artist. Discover their music.</title>
+  <meta name="description" content="SangeetPremi is a browser extension that finds an artist's songs across YouTube, classifies them, removes duplicates, and turns them into organized playlists. Created and developed by SPOOKEYfr."/>
+  <meta name="robots" content="index, follow"/>
+  <link rel="canonical" href="https://sangeetpremi.pages.dev/"/>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+  <link rel="apple-touch-icon" href="./icon-128.png"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="SangeetPremi"/>
+  <meta property="og:title" content="SangeetPremi — Search an artist. Discover their music."/>
+  <meta property="og:description" content="An intelligent music discovery and playlist generation browser extension. Finds an artist's songs across YouTube, classifies them, removes duplicates."/>
+  <meta property="og:image" content="./og-image.png"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="SangeetPremi — Search an artist. Discover their music."/>
+  <meta name="twitter:description" content="Intelligent music discovery and playlist generation browser extension."/>
+  <meta name="twitter:image" content="./og-image.png"/>
+  <meta name="theme-color" content="#060607"/>
+</head>
+<body data-page="index.html">
+  <header class="site-header"><div id="site-nav"></div></header>
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="kicker">Browser extension · YouTube music discovery</p>
+        <h1>Search an artist. <em>Discover their music.</em> Enjoy everything in one place.</h1>
+        <p class="lede">Type a singer, band or musician. SangeetPremi finds their songs across YouTube — official releases, soundtracks, collaborations, duets, live, acoustic, remixes — classifies every result, removes duplicates, and turns it all into an organized playlist.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="./download.html">Download</a>
+          <a class="btn btn-ghost" href="./features.html">Explore features</a>
+          <a class="btn btn-ghost" href="https://github.com/SPOOKEYfr/sangeetpremi" target="_blank" rel="noopener noreferrer">View on GitHub &#8599;</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <p class="kicker">What it does</p>
+        <h2>One search, a complete picture of an artist</h2>
+        <p class="lede">SangeetPremi reads public YouTube metadata through the official YouTube Data API v3, then does the organizing work for you: relevance scoring, 14 categories, role detection (primary, featured, playback singer), smart duplicate removal and honest filters.</p>
+        <div class="grid">
+          <div class="card"><span class="ico">&#9834;</span><h3>Artist discovery</h3><p>Disambiguation when several artists share a name, relevance scoring, and classification into official, live, remix, duet, soundtrack and more.</p></div>
+          <div class="card"><span class="ico">&#10003;</span><h3>Smart duplicates</h3><p>Strict, balanced or off — duplicates are collapsed, reviewable and restorable, never silently deleted.</p></div>
+          <div class="card"><span class="ico">&#9776;</span><h3>Playlist builder</h3><p>Select, sort, save, duplicate, export as JSON, play on YouTube, or publish a real playlist to your own YouTube account (optional OAuth).</p></div>
+          <div class="card"><span class="ico">&#128101;</span><h3>Multi-artist</h3><p>Comma-separated artists combined into one collection with correct per-track attribution.</p></div>
+          <div class="card"><span class="ico">&#128269;</span><h3>Honest filters</h3><p>Category, language (heuristics clearly labelled) and release-year range verified from real data — never guessed.</p></div>
+          <div class="card"><span class="ico">&#128274;</span><h3>Privacy-first</h3><p>No tracking, no analytics, no secrets in code. Your library stays in your browser's local storage and is exportable.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <p class="kicker">Honest status</p>
+        <h2>In active development</h2>
+        <div class="notice">
+          <strong>SangeetPremi is not yet published to the Chrome Web Store, and no GitHub release exists yet.</strong>
+          <p>The <a href="./download.html">Download page</a> shows the current, honest state and developer installation instructions. Nothing on this site claims a release that does not exist.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer" class="site-footer"></footer>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

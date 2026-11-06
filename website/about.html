@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>About — SangeetPremi</title>
+  <meta name="description" content="About SangeetPremi: an open-source browser extension created and developed by SPOOKEYfr, licensed GPL-3.0."/>
+  <link rel="canonical" href="https://sangeetpremi.pages.dev/about.html"/>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="SangeetPremi"/>
+  <meta property="og:title" content="About — SangeetPremi"/>
+  <meta property="og:description" content="Open-source music discovery extension by SPOOKEYfr, GPL-3.0."/>
+  <meta property="og:image" content="./og-image.png"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="theme-color" content="#060607"/>
+</head>
+<body data-page="about.html">
+  <header class="site-header"><div id="site-nav"></div></header>
+  <main>
+    <section class="section">
+      <div class="wrap prose">
+        <p class="kicker">About</p>
+        <h2>Built by one developer, in the open</h2>
+        <p class="lede">SangeetPremi is <strong>created and developed by <a href="https://github.com/SPOOKEYfr" target="_blank" rel="noopener noreferrer">SPOOKEYfr</a></strong> and published as open source under the <strong>GPL-3.0</strong> license.</p>
+        <p>Source code, architecture notes, test results and an honest status ledger live in the official repository:
+          <a href="https://github.com/SPOOKEYfr/sangeetpremi" target="_blank" rel="noopener noreferrer">github.com/SPOOKEYfr/sangeetpremi &#8599;</a></p>
+        <p>SangeetPremi is a browser extension for Chromium-based browsers (Chrome, Brave, Edge). It uses only the official YouTube Data API v3 for metadata; it never scrapes YouTube, never extracts audio, and playback always happens on YouTube itself. Your library, playlists and settings are stored only in your browser's local extension storage.</p>
+        <p>The optional "Create on YouTube" feature uses Google OAuth solely to publish a playlist you explicitly request to your own YouTube account. Connecting a Google account is never required for discovery or playback.</p>
+        <div class="notice">
+          <strong>Current development status (honest):</strong>
+          <p>The extension is in active development. There is no Chrome Web Store listing and no published release yet — see the <a href="./download.html">Download page</a>. A local development backend exists in the repo but is not deployed anywhere.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer" class="site-footer"></footer>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

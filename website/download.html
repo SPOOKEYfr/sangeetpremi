@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Download — SangeetPremi</title>
+  <meta name="description" content="Download SangeetPremi. No store listing or release exists yet — this page shows the honest current state plus developer (load unpacked) installation instructions."/>
+  <link rel="canonical" href="https://sangeetpremi.pages.dev/download.html"/>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:site_name" content="SangeetPremi"/>
+  <meta property="og:title" content="Download — SangeetPremi"/>
+  <meta property="og:description" content="Honest download state: no release yet, plus developer installation instructions."/>
+  <meta property="og:image" content="./og-image.png"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="theme-color" content="#060607"/>
+</head>
+<body data-page="download.html">
+  <header class="site-header"><div id="site-nav"></div></header>
+  <main>
+    <section class="section">
+      <div class="wrap">
+        <p class="kicker">Download</p>
+        <h2>Get SangeetPremi</h2>
+
+        <div class="notice">
+          <strong>Coming soon — no installable release exists yet.</strong>
+          <p>SangeetPremi is <strong>not yet published to the Chrome Web Store</strong>, and the GitHub repository currently has <strong>no releases or downloadable extension packages</strong>. We will not pretend otherwise: a source-code ZIP from GitHub is <em>not</em> an installable extension.</p>
+          <p>When a genuine, packaged release is published, it will appear at
+            <a href="https://github.com/SPOOKEYfr/sangeetpremi/releases" target="_blank" rel="noopener noreferrer">github.com/SPOOKEYfr/sangeetpremi/releases &#8599;</a>
+            and a direct download button will appear here.</p>
+        </div>
+
+        <h3 style="margin-top:44px">Install from source (developers) — works today</h3>
+        <p class="lede">This is the real, current installation path and matches the actual package. Requires Node.js 18+ and a Chromium-based browser (Chrome, Brave, Edge).</p>
+        <pre><code>git clone https://github.com/SPOOKEYfr/sangeetpremi.git
+cd sangeetpremi
+npm install
+npm run build        # builds the loadable extension into dist/</code></pre>
+        <ol class="steps">
+          <li>Open <code>chrome://extensions</code> in Chrome, Brave or Edge.</li>
+          <li>Enable <strong>Developer mode</strong> (toggle at the top right).</li>
+          <li>Click <strong>Load unpacked</strong> and select the project's <code>dist/</code> folder.</li>
+          <li>Click the SangeetPremi toolbar icon to open the popup; the full dashboard is available from the extension's options page.</li>
+        </ol>
+        <p class="lede" style="margin-top:22px">Live discovery uses the official YouTube Data API v3. See the repository's <code>docs/SETUP_YOUTUBE_API.md</code> for how a developer key is configured on-device — regular users of a future store release will not need any of this.</p>
+
+        <div class="hero-actions" style="margin-top:36px">
+          <a class="btn btn-primary" href="https://github.com/SPOOKEYfr/sangeetpremi/releases" target="_blank" rel="noopener noreferrer">Check releases on GitHub &#8599;</a>
+          <a class="btn btn-ghost" href="https://github.com/SPOOKEYfr/sangeetpremi" target="_blank" rel="noopener noreferrer">Source code &#8599;</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer id="site-footer" class="site-footer"></footer>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

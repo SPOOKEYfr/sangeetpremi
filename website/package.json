@@ -1,0 +1,18 @@
+{
+  "name": "sangeetpremi-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Official SangeetPremi public website (static build for Cloudflare Pages). Created and developed by SPOOKEYfr.",
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/sync-legal.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6"
+  }
+}

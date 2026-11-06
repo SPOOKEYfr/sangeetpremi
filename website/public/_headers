@@ -1,0 +1,9 @@
+# Cloudflare Pages custom headers (served from the output directory root).
+# The site is fully static with no third-party scripts, no inline script/style,
+# and no network calls — so a strict CSP is safe.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'

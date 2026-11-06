@@ -1,15 +1,18 @@
-/* SangeetPremi website — deep black/graphite, white type, restrained crimson. */
+/* SangeetPremi website — deep black/graphite, lavender/violet accents, purple gradients. */
+/* Visual identity aligned with the MV3 browser extension's claymorphism dark theme. */
+/* Design tokens: dark graphite surfaces, violet primary accents, purple gradients. */
+
 :root {
   --bg: #060607;
   --bg-2: #0c0d0f;
   --panel: #121316;
-  --panel-2: #17181c;
-  --line: #232529;
-  --text: #f4f4f2;
-  --text-2: #b9bab6;
-  --text-3: #82847f;
-  --accent: #d7263d;
-  --accent-soft: rgba(215, 38, 61, 0.14);
+  --panel-2: #1b1e25;
+  --line: #353945;
+  --text: #e8e6e3;
+  --text-2: #a7a39c;
+  --text-3: #6b6f7a;
+  --accent: #a78bf2;
+  --accent-soft: rgba(167, 139, 242, 0.14);
   --radius: 14px;
   --max: 1120px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -60,7 +63,7 @@ img { max-width: 100%; height: auto; }
 
 /* ---------- hero ---------- */
 .hero { padding: 108px 0 84px; border-bottom: 1px solid var(--line); background:
-  radial-gradient(1100px 420px at 50% -180px, rgba(215, 38, 61, 0.10), transparent 65%); }
+  radial-gradient(1100px 420px at 50% -180px, rgba(167, 139, 242, 0.10), transparent 65%); }
 .hero h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.06; letter-spacing: -0.02em; margin: 0 0 20px; max-width: 15ch; }
 .hero h1 em { font-style: normal; color: var(--accent); }
 .hero .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--text-2); max-width: 56ch; margin: 0 0 34px; }
@@ -69,7 +72,7 @@ img { max-width: 100%; height: auto; }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border-radius: 10px; font-size: 15px; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease; }
 .btn:hover { text-decoration: none; transform: translateY(-1px); }
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #e83a4f; color: #fff; }
+.btn-primary:hover { background: #bbadf1; color: #fff; }
 .btn-ghost { border-color: var(--line); color: var(--text); background: transparent; }
 .btn-ghost:hover { border-color: var(--text-3); color: var(--text); }
 
@@ -83,7 +86,7 @@ h3 { font-size: 18px; margin: 0 0 8px; }
 
 .grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); margin-top: 36px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; transition: border-color 0.2s ease, transform 0.2s ease; }
-.card:hover { border-color: #34363b; transform: translateY(-2px); }
+.card:hover { border-color: #4a4e59; transform: translateY(-2px); }
 .card .ico { color: var(--accent); font-size: 20px; line-height: 1; display: block; margin-bottom: 14px; }
 .card p { margin: 0; color: var(--text-2); font-size: 14.5px; }
 
@@ -102,7 +105,7 @@ pre { background: var(--bg-2); border: 1px solid var(--line); border-radius: var
 pre code { background: none; border: 0; padding: 0; }
 
 /* ---------- legal ---------- */
-.legal-banner { border: 1px solid rgba(215, 38, 61, 0.45); background: var(--accent-soft); color: var(--text); border-radius: var(--radius); padding: 16px 20px; font-size: 14.5px; margin: 26px 0 8px; }
+.legal-banner { border: 1px solid rgba(167, 139, 242, 0.45); background: var(--accent-soft); color: var(--text); border-radius: var(--radius); padding: 16px 20px; font-size: 14.5px; margin: 26px 0 8px; }
 .legal-body { max-width: 76ch; }
 .legal-body h1 { font-size: clamp(26px, 3.4vw, 34px); margin: 18px 0 10px; }
 .legal-body h2 { font-size: 21px; margin: 30px 0 10px; }

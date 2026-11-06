@@ -4,7 +4,7 @@ Product: **SangeetPremi** — intelligent artist-based music discovery & playlis
 generation browser extension. Created and developed by **SPOOKEYfr**.
 
 ## Current phase
-**v0.3 — Phase C1 (real provider adapters) IMPLEMENTED and mock-tested.** Phase C2 (orchestration) NOT started.
+**v0.3 — Phase C2 (discovery orchestration + job lifecycle + polling + zero-config migration) IMPLEMENTED and mock-tested.** Phase C1 complete underneath it. Phase D NOT started.
 See `backend/README.md` and `docs/ARCHITECTURE_V0.3.md` §11. Nothing deployed;
 no credentials, quota extensions, OAuth verification or paid services created
 (all require SPOOKEYfr's approval).
@@ -90,8 +90,16 @@ no credentials, quota extensions, OAuth verification or paid services created
 - [x] 20 new mock-transport provider tests; backend total 75/75 passing; tsc + build clean
 - [x] Extension untouched: 67/67 tests, tsc + build green
 
+## Completed in v0.3 Phase C2
+- [x] Shared pure engine at repo-root `shared/` — one implementation for extension + backend (no duplicated classification logic)
+- [x] Backend `DiscoveryOrchestrator`: resolve → channel → uploads → search fallback → classify → dedup → filters → stats; partial-failure degradation; multi-artist merge
+- [x] Async jobs: queued/running/completed/failed, progress, structured errors, 256-bit capabilities (header-only, hashed at rest, shown once), expiry/revocation, bounded concurrency + memory, sweep cleanup; polling via GET /v1/discover/:id; refresh endpoint; SSE deliberately 501
+- [x] Extension typed backend client (local dev origin only, no production endpoint), polling with backoff + cancellation, structured errors, QUOTA_EXHAUSTED/network messaging
+- [x] Zero-config migration: backend-first discovery; dev API key moved to Settings → Developer diagnostics; optional YouTube OAuth isolated; manifest optional_host_permissions limited to localhost
+- [x] Backend 87/87 + extension 78/78 tests, tsc + build + package clean, audit 0 vulns
+
 ## Next implementation tasks
-0. (Requires approval) Phase C: wire real providers server-side behind /v1 — NOT started
+0. (Requires approval) Phase D: NOT started
 1. Run the manual browser matrix (Chrome + Brave) and record results
 2. Firefox build per `docs/FIREFOX.md` once testable with `web-ext`
 3. Remaining v0.3 ideas: discovery stats dashboard, backup diffing, playlist sync to YouTube on refresh

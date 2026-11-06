@@ -16,7 +16,8 @@ import { InMemoryQuotaAccountant, type QuotaAccountant } from './quota.js';
 import { StubMetadataProvider, StubVideoProvider } from './providers/stubs.js';
 import { YouTubeVideoProvider } from './providers/youtube.js';
 import { MusicBrainzProvider } from './providers/musicbrainz.js';
-import { InMemoryJobStore, type JobStore } from './jobs.js';
+import { JobManager } from './jobManager.js';
+import { DiscoveryOrchestrator } from './orchestrator.js';
 import type { MetadataProvider, VideoProvider } from './providers/types.js';
 import { healthHandler } from './routes/v1/health.js';
 import { resolveArtistHandler } from './routes/v1/artists.js';
@@ -31,7 +32,7 @@ export interface App {
   quota: QuotaAccountant;
   secrets: SecretProvider;
   providers: { metadata: MetadataProvider; video: VideoProvider };
-  jobs: JobStore;
+  jobs: JobManager;
   identity: ClientIdentity | null;
 }
 
@@ -65,11 +66,13 @@ export function buildApp(overrides: {
   const router = new Router();
   router.get('/v1/health', healthHandler);
   router.get('/v1/artists/resolve', resolveArtistHandler(metadata));
-  router.post('/v1/discover', createDiscoveryHandler);
-  const jobs: JobStore = new InMemoryJobStore();
+  const jobs = new JobManager({ logger });
+  const orchestrator = new DiscoveryOrchestrator(video, metadata);
+  const pump = () => void jobs.pump((job, onProgress) => orchestrator.run(job.params, onProgress));
+  router.post('/v1/discover', createDiscoveryHandler(jobs, pump));
   router.get('/v1/discover/:id', (ctx) => getDiscoveryHandler(jobs, ctx.req)(ctx));
   router.get('/v1/discover/:id/events', (ctx) => discoveryEventsHandler(jobs, ctx.req)(ctx));
-  router.post('/v1/discover/:id/refresh', (ctx) => refreshDiscoveryHandler(jobs, ctx.req)(ctx));
+  router.post('/v1/discover/:id/refresh', (ctx) => refreshDiscoveryHandler(jobs, ctx.req, pump)(ctx));
   router.get('/v1/videos/:id', getVideoHandler(video));
 
   let identity: ClientIdentity | null = null;

@@ -6,16 +6,18 @@ let app: App | undefined;
 afterEach(async () => { if (app) await stop(app); app = undefined; });
 
 describe('POST /v1/discover validation (contract; orchestration is Phase C)', () => {
-  it('valid body reaches the stub and returns NOT_IMPLEMENTED (proves validation passed)', async () => {
+  it('valid body is accepted and enqueues a job (proves validation passed)', async () => {
     const s = await startTestApp(); app = s.app;
     const res = await fetch(`${s.base}/v1/discover`, {
       method: 'POST', headers: CLIENT_HEADERS,
-      body: JSON.stringify({ artists: ['Arijit Singh'], depth: 'standard', categories: ['official', 'live'], filters: { yearFrom: 2010, yearTo: 2024 } }),
+      body: JSON.stringify({ artists: ['Arijit Singh'], depth: 'standard', categories: ['song', 'live'], filters: { yearFrom: 2010, yearTo: 2024 } }),
     });
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.ok).toBe(false);
-    expect(body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(body.ok).toBe(true);
+    expect(body.data.jobId).toMatch(/^[0-9a-f]{24}$/);
+    expect(body.data.capability).toMatch(/^[0-9a-f]{64}$/); // 256-bit, shown once
+    expect(body.data.status).toBe('queued');
   });
 
   it('missing artists -> INVALID_INPUT 400', async () => {

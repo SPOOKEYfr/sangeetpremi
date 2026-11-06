@@ -1,8 +1,10 @@
 import type { IncomingMessage } from 'node:http';
 import type { RouteHandler } from '../../http/router.js';
-import type { JobStore } from '../../jobs.js';
 import { requireCapability } from '../../jobs.js';
-import { err } from '../../http/responses.js';
+import { JobManager, type DiscoveryJob } from '../../jobManager.js';
+import type { DiscoverParams } from '../../orchestrator.js';
+import type { DiscoveryCategory } from '../../../../shared/types.js';
+import { err, ok } from '../../http/responses.js';
 import { optionalInt, requireEnum, requireString, requireStringArray } from '../../middleware/validate.js';
 
 const DEPTHS = ['quick', 'standard', 'deep'] as const;
@@ -49,42 +51,76 @@ export function requireJobId(v: unknown): string {
   return s;
 }
 
-/** POST /v1/discover — contract established; orchestration is Phase C. */
-export const createDiscoveryHandler: RouteHandler = (ctx) => {
-  const req = validateDiscoverBody(ctx.body);
-  void req;
-  throw err.notImplemented('Discovery orchestration is Phase C. The request was validated successfully.');
-};
+interface Verifier { verify(id: string, capability: unknown, now?: number): boolean }
 
 /** Ownership check shared by job sub-resources. 401 for missing/malformed capability, 403 for invalid/expired. */
-export function requireJobAccess(req: IncomingMessage, jobs: JobStore, id: string): void {
+export function requireJobAccess(req: IncomingMessage, jobs: Verifier, id: string): void {
   const cap = requireCapability(req);
   if (!jobs.verify(id, cap)) throw err.forbidden('Invalid, expired or revoked job capability.');
 }
 
-/** GET /v1/discover/:id — contract established; capability-protected. */
-export function getDiscoveryHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
+/** POST /v1/discover — validates input, enqueues an async job, returns job id + one-time capability. */
+export function createDiscoveryHandler(jobs: JobManager, runJob: () => void): RouteHandler {
   return (ctx) => {
-    const id = requireJobId(ctx.params.id);
-    requireJobAccess(req, jobs, id);
-    throw err.notImplemented('Discovery jobs are Phase C.');
+    const req = validateDiscoverBody(ctx.body);
+    const params: DiscoverParams = {
+      artists: req.artists,
+      depth: req.depth,
+      categories: (req.categories ?? ['song', 'live', 'remix', 'duet']) as DiscoveryCategory[],
+      filters: req.filters,
+    };
+    const { jobId, capability } = jobs.create(params);
+    runJob(); // pump the queue
+    return ok({
+      jobId,
+      capability, // shown once, in the response body only — never logged, never in a URL
+      status: 'queued',
+      statusUrl: `/v1/discover/${jobId}`,
+    });
   };
 }
 
-/** POST /v1/discover/:id/refresh — capability-protected (prevents unauthorized refresh). */
-export function refreshDiscoveryHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
-  return (ctx) => {
-    const id = requireJobId(ctx.params.id);
-    requireJobAccess(req, jobs, id);
-    throw err.notImplemented('Incremental refresh is Phase C.');
+function publicJob(job: DiscoveryJob) {
+  return {
+    id: job.id,
+    state: job.state,
+    progress: job.progress,
+    result: job.state === 'completed' ? job.result : undefined,
+    error: job.state === 'failed' ? job.error : undefined,
+    createdAt: job.createdAt,
+    expiresAt: job.expiresAt,
   };
 }
 
-/** GET /v1/discover/:id/events — SSE contract; capability-protected. */
-export function discoveryEventsHandler(jobs: JobStore, req: IncomingMessage): RouteHandler {
+/** GET /v1/discover/:id — polling endpoint (Phase C2-C: no SSE). Capability via Authorization header only. */
+export function getDiscoveryHandler(jobs: JobManager, req: IncomingMessage): RouteHandler {
   return (ctx) => {
     const id = requireJobId(ctx.params.id);
     requireJobAccess(req, jobs, id);
-    throw err.notImplemented('SSE progress stream is Phase C.');
+    const job = jobs.get(id);
+    if (!job) throw err.forbidden('Invalid, expired or revoked job capability.');
+    return ok(publicJob(job));
+  };
+}
+
+/** POST /v1/discover/:id/refresh — re-runs the same params as a NEW job (client merges; no silent merge server-side). */
+export function refreshDiscoveryHandler(jobs: JobManager, req: IncomingMessage, runJob: () => void): RouteHandler {
+  return (ctx) => {
+    const id = requireJobId(ctx.params.id);
+    requireJobAccess(req, jobs, id);
+    const prev = jobs.get(id);
+    if (!prev) throw err.forbidden('Invalid, expired or revoked job capability.');
+    const { jobId, capability } = jobs.create(prev.params);
+    runJob();
+    return ok({ jobId, capability, status: 'queued', refreshedFrom: id, statusUrl: `/v1/discover/${jobId}` });
+  };
+}
+
+/** GET /v1/discover/:id/events — SSE intentionally NOT implemented in v0.3; polling via GET /v1/discover/:id is the contract. */
+export function discoveryEventsHandler(jobs: JobManager, req: IncomingMessage): RouteHandler {
+  return (ctx) => {
+    const id = requireJobId(ctx.params.id);
+    requireJobAccess(req, jobs, id);
+    throw err.notImplemented('SSE is not supported in v0.3; poll GET /v1/discover/:id instead.');
   };
 }

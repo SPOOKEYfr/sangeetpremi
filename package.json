@@ -1,7 +1,7 @@
 {
   "name": "sangeetpremi",
-  "version": "0.3.2",
-  "description": "SangeetPremi — intelligent artist-based music discovery and playlist generation browser extension. Created by SPOOKEYfr.",
+  "version": "0.3.3",
+  "description": "SangeetPremi \u2014 intelligent artist-based music discovery and playlist generation browser extension. Created by SPOOKEYfr.",
   "license": "GPL-3.0-only",
   "author": "SPOOKEYfr",
   "private": true,

@@ -6,6 +6,7 @@ import { store } from '../../state/store';
 import { navigate } from '../../app/router';
 import { loadConfig } from '../../services/config';
 import { YouTubeClient } from '../../services/youtube/api';
+import { BackendClient, BackendError, friendlyBackendError, type JobStatus } from '../../services/backend/client';
 import { DiscoveryEngine, type ProgressEvent } from '../../services/discovery/engine';
 import { filterByCategory, filterByLanguage, filterByYearRange, searchTracks, sortTracks } from '../../services/discovery/filters';
 import { computeStats, relatedArtists } from '../../services/discovery/stats';
@@ -34,6 +35,7 @@ interface ViewState {
   sortKey: 'title' | 'publishedAt' | 'viewCount' | 'duration';
   running: boolean;
   refreshResult?: { newTracks: Track[]; stillPresent: number; notRefreshed: number };
+  backendJob?: { jobId: string; capability: string };
 }
 
 export async function renderDiscover(el: HTMLElement, params: URLSearchParams): Promise<void> {
@@ -88,14 +90,60 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     if (q) void runDiscovery(q);
   });
 
+  const backend = new BackendClient();
+  const abortRef = { ctrl: new AbortController() };
+
+  /** True when the local backend answers /v1/health (zero-config path). */
+  async function backendAvailable(): Promise<boolean> {
+    return backend.isAvailable();
+  }
+
+  /** Map a backend job result into the v0.2 session shape (preserves all v0.2 features). */
+  function sessionFromBackend(queries: string[], depth: DiscoveryDepth, st: JobStatus): DiscoverySession {
+    const res = st.result!;
+    return {
+      id: st.id,
+      artist: res.artists[0] ?? { id: 'multi', name: queries.join(' + '), normalizedName: 'multi' },
+      status: 'completed', depth, categories: [...selectedCats],
+      tracks: res.tracks,
+      report: {
+        query: queries.join(', '), candidatesFound: res.report.candidatesFound, accepted: res.report.accepted,
+        duplicatesRemoved: res.report.duplicatesRemoved, excluded: res.report.excluded,
+        exclusionReasons: res.report.exclusionReasons, startedAt: st.createdAt, finishedAt: Date.now(),
+      },
+      createdAt: st.createdAt, updatedAt: Date.now(),
+    };
+  }
+
+  /** Submit + poll via the local backend (zero-config). Returns null when the backend is unavailable. */
+  async function discoverViaBackend(queries: string[], depth: DiscoveryDepth, onProgress: (m: string, done?: number, total?: number) => void): Promise<{ session: DiscoverySession; tracks: Track[]; duplicates: Track[]; artists: Artist[] } | null> {
+    if (!(await backendAvailable())) return null;
+    onProgress('Connecting to the local discovery service…');
+    let accepted;
+    try {
+      accepted = await backend.submitDiscovery({ artists: queries, depth, categories: [...selectedCats] });
+    } catch (e) {
+      if (e instanceof BackendError && (e.code === 'QUOTA_EXHAUSTED' || e.code === 'RATE_LIMITED')) throw e;
+      return null; // fall back to dev-key path
+    }
+    state.backendJob = { jobId: accepted.jobId, capability: accepted.capability };
+    const phases: Record<string, string> = {
+      resolve: 'Resolving artist…', discover: 'Discovering uploads…', search: 'Searching…',
+      classify: 'Classifying results…', dedupe: 'Removing duplicates…', done: 'Finishing…',
+    };
+    const st = await backend.pollJob(accepted.jobId, accepted.capability, (p) => {
+      onProgress(phases[p.phase] ?? p.message, p.done, p.total);
+    }, abortRef.ctrl.signal);
+    if (st.state === 'failed') throw new BackendError('UNKNOWN', st.error?.message ?? 'Discovery failed on the service.');
+    const session = sessionFromBackend(queries, depth, st);
+    return { session, tracks: st.result!.tracks, duplicates: st.result!.duplicates, artists: st.result!.artists };
+  }
+
   async function getClient(): Promise<YouTubeClient> {
     const cfg = await loadConfig();
     if (!cfg.youtubeApiKey) {
-      openModal('YouTube API key required',
-        `<p>Live discovery uses the official YouTube Data API. Add your API key in <a href="#/settings">Settings</a> first.</p>
-         <p style="font-size:12.5px;color:var(--text-3)">See <code>docs/SETUP_YOUTUBE_API.md</code>. Your key stays on your device.</p>`,
-        [{ label: 'Open Settings', kind: 'primary', onClick: () => navigate('settings') }, { label: 'Close', kind: 'ghost', onClick: () => {} }]);
-      throw new Error('no-key');
+      // Zero-config path failed and no developer key is set: honest message, no fake UI.
+      throw new Error('no-backend-no-key');
     }
     return new YouTubeClient(cfg.youtubeApiKey);
   }
@@ -128,11 +176,32 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     renderArtists(); renderResults();
     const progressEl = progressShell();
     const onProgress = makeProgress(progressEl);
+    const queries = query.split(',').map((s) => s.trim()).filter(Boolean);
+    const depth = depthSel.value as DiscoveryDepth;
     try {
+      // ---- Phase C2: backend-first (zero-config). Falls back to the v0.2 dev-key engine only when configured. ----
+      try {
+        const via = await discoverViaBackend(queries, depth, (msg, done, total) => onProgress({ phase: 'fetch', message: msg, done, total }));
+        if (via) {
+          state.session = via.session;
+          state.allTracks = [...via.tracks, ...via.duplicates];
+          state.artists = via.artists;
+          state.selected = via.artists[0];
+          state.selectedIds = new Set(via.tracks.slice(0, 50).map((t) => t.videoId));
+          store.saveSession(via.session);
+          for (const a of via.artists) store.saveArtist({ ...a, discoveredAt: Date.now(), favorite: store.library?.artists[a.id]?.favorite ?? false });
+          progressEl.innerHTML = '';
+          renderArtists(); renderResults();
+          toast(`Discovered ${via.tracks.length} tracks${via.artists.length > 1 ? ` across ${via.artists.length} artists` : ''}`, 'success');
+          state.running = false;
+          return;
+        }
+      } catch (e) {
+        if (e instanceof BackendError) { progressEl.innerHTML = ''; state.running = false; toast(friendlyBackendError(e), 'error'); return; }
+        // otherwise fall through to the local dev-key engine
+      }
       const client = await getClient();
       const engine = new DiscoveryEngine(client);
-      const queries = query.split(',').map((s) => s.trim()).filter(Boolean);
-      const depth = depthSel.value as DiscoveryDepth;
       const opts = { depth, categories: [...selectedCats], dedup: store.settings.dedupStrictness, maxPerQuery: store.settings.maxResultsPerQuery };
 
       if (queries.length > 1) {
@@ -182,7 +251,12 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       }
     } catch (err) {
       progressEl.innerHTML = ''; state.running = false;
-      if ((err as Error).message !== 'no-key') toast((err as Error).message, 'error');
+      const m = (err as Error).message;
+      if (m === 'no-backend-no-key') {
+        toast('Discovery is temporarily unavailable: no local service is running and no developer key is configured (Settings → Developer diagnostics).', 'error');
+      } else {
+        toast(friendlyBackendError(err), 'error');
+      }
     }
   }
 
@@ -221,9 +295,26 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     const progressEl = progressShell();
     const onProgress = makeProgress(progressEl);
     try {
+      const depth = depthSel.value as DiscoveryDepth;
+      if (state.backendJob && await backendAvailable()) {
+        // Backend refresh: new job, then client-side diff — no silent merge, user approves adds (C2-F).
+        const accepted = await backend.refreshJob(state.backendJob.jobId, state.backendJob.capability);
+        state.backendJob = { jobId: accepted.jobId, capability: accepted.capability };
+        const st = await backend.pollJob(accepted.jobId, accepted.capability, (p) => onProgress({ phase: (p.phase as 'fetch'), message: p.message, done: p.done, total: p.total }), abortRef.ctrl.signal);
+        if (st.state === 'failed') throw new BackendError('UNKNOWN', st.error?.message ?? 'Refresh failed.');
+        const fresh = st.result!.tracks;
+        const existing = new Set(state.session.tracks.map((t) => t.videoId));
+        const newTracks = fresh.filter((t) => !existing.has(t.videoId));
+        const stillPresent = fresh.filter((t) => existing.has(t.videoId)).length;
+        progressEl.innerHTML = '';
+        state.refreshResult = { newTracks, stillPresent, notRefreshed: state.session.tracks.length - stillPresent };
+        renderResults();
+        toast(newTracks.length ? `Found ${newTracks.length} new track${newTracks.length > 1 ? 's' : ''} — review below.` : 'No new tracks found — collection is up to date.', newTracks.length ? 'success' : 'info');
+        state.running = false;
+        return;
+      }
       const client = await getClient();
       const engine = new DiscoveryEngine(client);
-      const depth = depthSel.value as DiscoveryDepth;
       const { diff } = await engine.refresh(state.session, { depth, categories: [...selectedCats], dedup: store.settings.dedupStrictness, maxPerQuery: store.settings.maxResultsPerQuery }, onProgress);
       progressEl.innerHTML = '';
       state.refreshResult = { newTracks: diff.newTracks, stillPresent: diff.stillPresent, notRefreshed: diff.notRefreshed };

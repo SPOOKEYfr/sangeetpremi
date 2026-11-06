@@ -109,18 +109,23 @@ describe('job ownership (capability tokens)', () => {
     const res = await fetch(`${s.base}/v1/discover/abcdef12`, { headers: { Authorization: 'Bearer xyz' } });
     expect(res.status).toBe(401);
   });
-  it('wrong capability -> 403; valid capability passes ownership then 501', async () => {
+  it('wrong capability -> 403; valid capability passes ownership and returns job state; SSE stays 501 (polling contract)', async () => {
     const s = await startTestApp(); app = s.app;
     const jobs = app.jobs;
-    const cap = jobs.create('abcdef12', 60_000);
-    const wrong = await fetch(`${s.base}/v1/discover/abcdef12`, { headers: { Authorization: `Bearer ${'0'.repeat(64)}` } });
+    const { jobId, capability } = jobs.create({ artists: ['x'], depth: 'quick', categories: [] });
+    const wrong = await fetch(`${s.base}/v1/discover/${jobId}`, { headers: { Authorization: `Bearer ${'0'.repeat(64)}` } });
     expect(wrong.status).toBe(403);
-    const okRes = await fetch(`${s.base}/v1/discover/abcdef12`, { headers: { Authorization: `Bearer ${cap}` } });
-    expect(okRes.status).toBe(501); // passed ownership, orchestration is Phase C
-    const ev = await fetch(`${s.base}/v1/discover/abcdef12/events`, { headers: { Authorization: `Bearer ${cap}` } });
-    expect(ev.status).toBe(501);
-    const rf = await fetch(`${s.base}/v1/discover/abcdef12/refresh`, { method: 'POST', headers: { ...CLIENT_HEADERS, Authorization: `Bearer ${cap}` }, body: '{}' });
-    expect(rf.status).toBe(501);
+    const okRes = await fetch(`${s.base}/v1/discover/${jobId}`, { headers: { Authorization: `Bearer ${capability}` } });
+    expect(okRes.status).toBe(200);
+    const body = await okRes.json();
+    expect(body.ok).toBe(true);
+    expect(['queued', 'running', 'completed', 'failed']).toContain(body.data.state);
+    const ev = await fetch(`${s.base}/v1/discover/${jobId}/events`, { headers: { Authorization: `Bearer ${capability}` } });
+    expect(ev.status).toBe(501); // SSE intentionally not implemented — polling only
+    const rf = await fetch(`${s.base}/v1/discover/${jobId}/refresh`, { method: 'POST', headers: { ...CLIENT_HEADERS, Authorization: `Bearer ${capability}` }, body: '{}' });
+    expect(rf.status).toBe(200); // refresh enqueues a new job
+    const rfBody = await rf.json();
+    expect(rfBody.data.jobId).toBeTruthy();
   });
   it('expired and revoked capabilities are rejected', () => {
     let t = 1000;

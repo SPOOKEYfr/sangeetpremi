@@ -59,6 +59,10 @@ export default defineManifest({
     'https://www.youtube.com/*',
     'https://music.youtube.com/*',
   ],
+  // Phase C2: the optional local backend (development only) is requested at
+  // runtime via optional_host_permissions — never granted silently, and no
+  // production/hosted API origin exists in v0.3.
+  optional_host_permissions: ['http://127.0.0.1:8080/*', 'http://localhost:8080/*'],
   web_accessible_resources: [
     {
       resources: ['icons/*', 'assets/*'],

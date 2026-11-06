@@ -3,6 +3,16 @@
 All notable changes to SangeetPremi are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.3] — 2026-11-06 (Phase C2 — discovery orchestration, jobs, polling, zero-config migration; not deployed)
+- **Shared engine**: pure v0.2 engine modules moved to repo-root `shared/` — ONE implementation of classify/dedup/merge/filters/stats/language/normalize used by BOTH the extension and the backend (no duplicated classification logic); old extension paths are re-export shims.
+- **Backend discovery orchestrator** (`backend/src/orchestrator.ts`): artist resolution (MusicBrainz → YouTube channel) → uploads enumeration → controlled search fallback per depth → normalize → classify/role → dedup → language/year filters → stats + related artists; multi-artist merge with attribution; partial provider failure degrades with notes instead of failing the job.
+- **Async job lifecycle** (`backend/src/jobManager.ts` + routes): `POST /v1/discover` validates and enqueues, returning a random job id + a 256-bit capability shown exactly once (only its SHA-256 hash is stored; sent solely via `Authorization: Bearer`, never in URLs or logs). States queued/running/completed/failed with progress and structured errors; expiry (24h), revocation, bounded concurrency (2), bounded memory (max jobs + progress), periodic sweep. Single-instance in-memory — stated honestly, no multi-instance claims.
+- **Polling only** (C2-C): `GET /v1/discover/:id` with capability header; `POST /v1/discover/:id/refresh` re-runs the same params as a NEW job (client-side diff, user-approved adds only — no silent merge). The SSE route remains a deliberate 501.
+- **Extension backend client** (`src/services/backend/client.ts`): typed models, centralized base URL defaulting to `http://127.0.0.1:8080` (local dev only — no production endpoint exists or is invented), AbortSignal timeout/cancellation, polling with backoff that stops on finish/navigation, structured errors with user-meaningful QUOTA_EXHAUSTED / network / unavailable messages; capability header-only; no secrets in extension storage; no API keys in the bundle (test-enforced).
+- **Zero-config migration (C2-E)**: discovery view is backend-first; the v0.2 direct-API path remains only as a developer fallback key in Settings → "Developer diagnostics" (collapsed `<details>`). Optional YouTube-account OAuth (playlist publishing) kept isolated and documented; no Google login needed to discover or play public videos. Manifest gains `optional_host_permissions` limited to localhost origins.
+- **Tests**: backend 87/87 (orchestrator with mock providers, job lifecycle, capability/expiry/revocation, concurrency cap, sweep cleanup, HTTP polling, refresh, partial failure, multi-artist); extension 78/78 (backend client polling/cancel/errors + no-keys-in-bundle guard). tsc + build + package clean both sides; npm audit 0 vulnerabilities.
+- Not deployed; no credentials, quota submissions, or purchases. Browser testing NOT performed in sandbox (manual matrix only).
+
 ## [0.3.2] — 2026-11-06 (Phase C1 — real provider adapters, mock-tested only)
 ### Added
 - `backend/src/providers/youtube.ts`: YouTubeVideoProvider — channels.list, playlistItems.list

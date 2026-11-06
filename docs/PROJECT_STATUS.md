@@ -4,8 +4,10 @@ Product: **SangeetPremi** — intelligent artist-based music discovery & playlis
 generation browser extension. Created and developed by **SPOOKEYfr**.
 
 ## Current phase
-**v0.2 — Stability, validation & feature expansion** (in progress on
-`arena/c3ad703b-sangeetpremi`; v0.1 MVP merged to main).
+**v0.3 — Public release & zero-configuration architecture (Phase A: architecture
+proposal complete — see `docs/ARCHITECTURE_V0.3.md`)**. No backend implemented or
+deployed yet; no credentials, quota extensions or paid services created (all
+require SPOOKEYfr's approval).
 
 ## Completed in v0.2
 - [x] Playlist builder: HTML5 drag-and-drop reordering with drop indicator + keyboard-accessible ↑/↓ moves, persisted ordering, bulk select/remove, per-playlist search, category filter, 5 sort modes, selection statistics
@@ -34,6 +36,13 @@ generation browser extension. Created and developed by **SPOOKEYfr**.
 - Refresh is diff-then-review: the stored session is immutable until the user approves merges
 - Multi-artist merge keeps `track.artist` from the discovering session
 - Language detection carries a confidence label; UI never presents heuristics as fact
+
+## v0.3 direction (approved direction, pending implementation)
+- Zero-configuration: backend-held YouTube credentials; extension ships with no secrets
+- Versioned backend API `/v1/*` + MusicBrainz metadata provider + YouTube video provider
+- Centralized caching, rate limiting, quota management, graceful capacity errors
+- OAuth only for explicit "Create on YouTube"; verification = launch dependency (>100 users)
+- Privacy: anonymous client id only; playlists stay local; PRIVACY.md/TERMS.md in Phase F
 
 ## Next implementation tasks
 1. Run the manual browser matrix (Chrome + Brave) and record results

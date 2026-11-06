@@ -5,3 +5,7 @@ dist/
 Unselected files/
 .DS_Store
 *.log
+backend/.env
+backend/dist/
+backend/node_modules/
+*.zip

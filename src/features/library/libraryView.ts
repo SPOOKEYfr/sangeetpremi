@@ -3,6 +3,7 @@ import { store } from '../../state/store';
 import { trackCard } from '../../components/trackCard';
 import { icon } from '../../components/icons';
 import { navigate } from '../../app/router';
+import { h } from '../../utils/dom';
 
 export function renderLibrary(el: HTMLElement): void {
   const tracks = store.allTracks();
@@ -13,9 +14,7 @@ export function renderLibrary(el: HTMLElement): void {
   <div class="fade-in" style="max-width:1060px">
     <h2 style="margin-bottom:4px">Your library</h2>
     <p style="margin:0 0 22px;font-size:13.5px">${tracks.length} discovered tracks · ${artists.length} saved artists · ${favs.size} favorites</p>
-    ${artists.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px">
-      ${artists.map((a) => `<button class="chip lib-a" data-id="${a.id}">${a.favorite ? '★ ' : ''}${a.name}</button>`).join('')}
-    </div>` : ''}
+    <div id="lib-artists" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px"></div>
     <div id="lib-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </div>`;
 
@@ -38,7 +37,10 @@ export function renderLibrary(el: HTMLElement): void {
       }),
     );
   }
-  el.querySelectorAll('.lib-a').forEach((b) =>
-    b.addEventListener('click', () => navigate('discover', { artist: (b as HTMLElement).dataset.id ?? '' })),
-  );
+  const artistsEl = el.querySelector('#lib-artists') as HTMLElement;
+  for (const a of artists) {
+    const chip = h('button', { class: 'chip lib-a', 'data-id': a.id }, (a.favorite ? '★ ' : '') + a.name);
+    chip.addEventListener('click', () => navigate('discover', { artist: a.id }));
+    artistsEl.appendChild(chip);
+  }
 }

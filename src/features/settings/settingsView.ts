@@ -44,11 +44,9 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     </section>
 
     <section class="clay" style="padding:26px 30px">
-      <h3 style="margin-bottom:6px">YouTube connection</h3>
-      <p style="font-size:12.5px;margin:0 0 16px">Credentials are stored only in this browser's local extension storage and are sent exclusively to Google. See <code>docs/SETUP_YOUTUBE_API.md</code>.</p>
-      <label class="label">YouTube Data API key</label>
-      <input id="st-key" class="input" type="password" style="max-width:420px;margin-bottom:6px" placeholder="${cfg.youtubeApiKey ? '•••• configured ••' : 'Paste your API key'}"/>
-      <label class="label" style="margin-top:14px">OAuth client id (for “Create on YouTube”)</label>
+      <h3 style="margin-bottom:6px">Optional: publish playlists to your YouTube account</h3>
+      <p style="font-size:12.5px;margin:0 0 16px">Discovery and playback of public videos never need a Google login. Connecting a YouTube account is <b>only</b> for the optional “Create on YouTube” playlist-publishing feature, and is fully isolated. OAuth client id is stored only in this browser's local extension storage and sent exclusively to Google.</p>
+      <label class="label">OAuth client id (for “Create on YouTube”)</label>
       <input id="st-client" class="input" type="password" style="max-width:420px;margin-bottom:6px" placeholder="${cfg.youtubeClientId ? '•••• configured ••' : 'Paste your Chrome-extension OAuth client id'}"/>
       <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="st-save-creds">${icon('check', 14)} Save credentials</button>
@@ -56,6 +54,13 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
         ${authorized ? '<span class="badge teal">YouTube account connected</span> <button class="btn btn-ghost btn-sm" id="st-revoke">Disconnect</button>' : '<span class="badge muted">YouTube account not connected</span>'}
       </div>
     </section>
+
+    <details class="clay" style="padding:26px 30px">
+      <summary style="cursor:pointer;font-weight:650">Developer diagnostics (not needed for normal use)</summary>
+      <p style="font-size:12.5px;margin:12px 0 16px">Normal discovery runs through the local SangeetPremi service — no setup, no Google Cloud project, no API key. The field below is only a development fallback for running discovery directly against the YouTube Data API with your own key. Keys are stored only in this browser's local extension storage, are never bundled with the extension, and are sent exclusively to Google. See <code>docs/SETUP_YOUTUBE_API.md</code>.</p>
+      <label class="label">YouTube Data API key (developer fallback only)</label>
+      <input id="st-key" class="input" type="password" style="max-width:420px;margin-bottom:6px" placeholder="${cfg.youtubeApiKey ? '•••• configured ••' : 'Paste your API key'}"/>
+    </details>
 
     <section class="clay" style="padding:26px 30px">
       <h3 style="margin-bottom:16px">Data &amp; privacy</h3>
@@ -145,6 +150,9 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
         label: 'Erase everything',
         kind: 'danger',
         onClick: async () => {
+          // Best-effort remote revocation of the Google grant; local deletion
+          // proceeds regardless of the outcome (and never claims revocation happened).
+          try { await revoke(); } catch { /* local wipe still guaranteed */ }
           await wipeAllData();
           toast('All local data erased', 'info');
           location.reload();

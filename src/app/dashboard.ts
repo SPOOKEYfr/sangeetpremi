@@ -13,6 +13,7 @@ import { renderHome } from '../features/home/home';
 import { renderDiscover } from '../features/discovery/discoveryView';
 import { renderLibrary } from '../features/library/libraryView';
 import { renderPlaylists } from '../features/playlists/playlistsView';
+import { renderCompare } from '../features/compare/compareView';
 import { renderSettings } from '../features/settings/settingsView';
 import { renderAbout } from '../features/about/aboutView';
 
@@ -21,6 +22,7 @@ const NAV: { route: Route; label: string; icon: keyof typeof import('../componen
   { route: 'discover', label: 'Discover', icon: 'search' },
   { route: 'library', label: 'Library', icon: 'library' },
   { route: 'playlists', label: 'Playlists', icon: 'list' },
+  { route: 'compare', label: 'Compare', icon: 'sparkles' },
   { route: 'settings', label: 'Settings', icon: 'settings' },
   { route: 'about', label: 'About', icon: 'info' },
 ];
@@ -58,6 +60,7 @@ async function boot(): Promise<void> {
     discover: (el, p) => void renderDiscover(el, p),
     library: (el) => void renderLibrary(el),
     playlists: (el, p) => void renderPlaylists(el, p),
+    compare: (el) => void renderCompare(el),
     settings: (el) => void renderSettings(el),
     about: (el) => void renderAbout(el),
   };

@@ -10,11 +10,15 @@
  * - host permissions limited to YouTube API + YouTube site (discovery source)
  */
 import { defineManifest } from '@crxjs/vite-plugin';
+import { readFileSync } from 'node:fs';
+
+// Single authoritative version source: package.json (verified by tests/version.test.ts).
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
 
 export default defineManifest({
   manifest_version: 3,
   name: 'SangeetPremi',
-  version: '0.1.0',
+  version: pkg.version,
   description:
     'Search an artist. Discover their music. Enjoy everything in one place. Intelligent YouTube music discovery and playlist generation.',
   icons: {
@@ -55,6 +59,10 @@ export default defineManifest({
     'https://www.youtube.com/*',
     'https://music.youtube.com/*',
   ],
+  // Phase C2: the optional local backend (development only) is requested at
+  // runtime via optional_host_permissions — never granted silently, and no
+  // production/hosted API origin exists in v0.3.
+  optional_host_permissions: ['http://127.0.0.1:8080/*', 'http://localhost:8080/*'],
   web_accessible_resources: [
     {
       resources: ['icons/*', 'assets/*'],

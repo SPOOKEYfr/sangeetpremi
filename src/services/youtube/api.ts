@@ -10,11 +10,23 @@
  */
 import { parseDuration } from '../../utils/normalize';
 import { isValidVideoId } from '../../utils/sanitize';
-import type { QuotaUsage } from '../../types';
+import type { QuotaBucket, QuotaUsage } from '../../types';
+import { QUOTA_LIMITS } from '../../types';
 
 const API_BASE = 'https://www.googleapis.com/youtube/v3';
 const QUOTA_KEY = 'sangeetpremi.quota';
-const DEFAULT_DAILY_LIMIT = 10000;
+
+/** Method-specific quota costs (June 2026 bucket model; verified Nov 2026).
+ *  search.list -> search bucket (1 call each, 100/day); videos.list/channels.list ->
+ *  general (1 unit per call, 50 ids max); playlists.insert/playlistItems.insert ->
+ *  general 50 units each. Every paginated page is another call. */
+const METHOD_COSTS: Record<string, { bucket: QuotaBucket; units: number }> = {
+  search: { bucket: 'search', units: 1 },
+  videos: { bucket: 'general', units: 1 },
+  channels: { bucket: 'general', units: 1 },
+  playlists: { bucket: 'general', units: 50 },
+  playlistItems: { bucket: 'general', units: 50 },
+};
 
 export interface YouTubeVideo {
   videoId: string;
@@ -49,8 +61,8 @@ export class YouTubeApiError extends Error {
 }
 
 export class QuotaExceededError extends YouTubeApiError {
-  constructor(used: number, limit: number) {
-    super(`YouTube API daily quota exhausted (${used}/${limit} units used). Try again tomorrow or raise the limit in Settings.`, 429, 'quotaExceeded');
+  constructor(public bucket: QuotaBucket, used: number, limit: number) {
+    super(`YouTube API ${bucket} quota exhausted for today (${used}/${limit}). It resets at midnight Pacific Time.`, 429, 'quotaExceeded');
     this.name = 'QuotaExceededError';
   }
 }
@@ -71,7 +83,6 @@ export class YouTubeClient {
 
   constructor(
     private apiKey: string,
-    private dailyLimit = DEFAULT_DAILY_LIMIT,
     minIntervalMs = 120,
   ) {
     this.minIntervalMs = minIntervalMs;
@@ -93,34 +104,41 @@ export class YouTubeClient {
     return run;
   }
 
+  /** Quota resets at midnight Pacific Time, not UTC. */
+  private todayPT(): string {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  }
+
   private async getQuota(): Promise<QuotaUsage> {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = this.todayPT();
     let usage: QuotaUsage | undefined;
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       const res = await chrome.storage.local.get(QUOTA_KEY);
       usage = res[QUOTA_KEY];
     }
-    if (!usage || usage.date !== today) return { date: today, used: 0, limit: this.dailyLimit };
+    if (!usage || usage.date !== today) return { date: today, search: 0, uploads: 0, general: 0 };
     return usage;
   }
 
-  private async addQuota(units: number): Promise<QuotaUsage> {
+  private async addQuota(bucket: QuotaBucket, units: number): Promise<QuotaUsage> {
     const usage = await this.getQuota();
-    const next = { ...usage, used: usage.used + units };
+    const next = { ...usage, [bucket]: usage[bucket] + units };
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       await chrome.storage.local.set({ [QUOTA_KEY]: next });
     }
     return next;
   }
 
-  private async assertQuota(cost: number): Promise<void> {
+  private async assertQuota(bucket: QuotaBucket, units: number): Promise<void> {
     const usage = await this.getQuota();
-    if (usage.used + cost > usage.limit) throw new QuotaExceededError(usage.used, usage.limit);
+    if (usage[bucket] + units > QUOTA_LIMITS[bucket]) throw new QuotaExceededError(bucket, usage[bucket], QUOTA_LIMITS[bucket]);
   }
 
-  private async request<T>(path: string, params: Record<string, string>, cost: number): Promise<T> {
+  private async request<T>(path: string, params: Record<string, string>): Promise<T> {
+    const cost = METHOD_COSTS[path] ?? { bucket: 'general' as QuotaBucket, units: 1 };
+    // Note: every paginated call is a separate request() and is charged separately.
+    await this.assertQuota(cost.bucket, cost.units);
     if (!this.apiKey) throw new YouTubeApiError('YouTube API key is not configured. Open Settings and add your key (see docs/SETUP_YOUTUBE_API.md).', 401, 'keyMissing');
-    await this.assertQuota(cost);
     return this.enqueue(async () => {
       const url = new URL(`${API_BASE}/${path}`);
       url.searchParams.set('key', this.apiKey);
@@ -129,7 +147,6 @@ export class YouTubeClient {
       try {
         res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
       } catch (e) {
-        await this.addQuota(0);
         throw new YouTubeApiError(`Network error while contacting YouTube API: ${(e as Error).message}`, 0, 'network');
       }
       const body = await res.json().catch(() => ({}));
@@ -138,12 +155,12 @@ export class YouTubeClient {
         const reason = err?.errors?.[0]?.reason;
         throw new YouTubeApiError(err?.message ?? `YouTube API request failed (HTTP ${res.status})`, res.status, reason);
       }
-      await this.addQuota(cost);
+      await this.addQuota(cost.bucket, cost.units);
       return body as T;
     });
   }
 
-  /** Search videos. cost: 100 units. */
+  /** Search videos. Costs 1 call from the dedicated search bucket (100 calls/day); each page is another call. */
   async searchVideos(query: string, maxResults = 25, pageToken?: string): Promise<{ items: YouTubeVideo[]; nextPageToken?: string }> {
     const body = await this.request<{
       items?: { id?: { videoId?: string }; snippet?: RawSnippet }[]; nextPageToken?: string }>(
@@ -157,7 +174,6 @@ export class YouTubeClient {
         relevanceLanguage: 'en',
         safeSearch: 'none',
       },
-      100,
     );
     const items: YouTubeVideo[] = [];
     const ids: string[] = [];
@@ -193,13 +209,13 @@ export class YouTubeClient {
     return { items, nextPageToken: body.nextPageToken };
   }
 
-  /** Video details. cost: 1 unit per 50 ids. */
+  /** Video details. Costs 1 general unit per call (up to 50 ids). */
   async getVideoDetails(videoIds: string[]): Promise<YouTubeVideo[]> {
     const valid = videoIds.filter(isValidVideoId).slice(0, 50);
     if (!valid.length) return [];
     const body = await this.request<{
       items?: { id?: string; snippet?: RawSnippet; contentDetails?: { duration?: string }; statistics?: { viewCount?: string } }[];
-    }>('videos', { part: 'snippet,contentDetails,statistics', id: valid.join(',') }, 1);
+    }>('videos', { part: 'snippet,contentDetails,statistics', id: valid.join(',') });
     return (body.items ?? []).map((it) => ({
       videoId: it.id ?? '',
       title: it.snippet?.title ?? '',
@@ -213,13 +229,13 @@ export class YouTubeClient {
     }));
   }
 
-  /** Channel info. cost: 1 unit per 50 ids. */
+  /** Channel info. Costs 1 general unit per call (up to 50 ids). */
   async getChannels(channelIds: string[]): Promise<YouTubeChannel[]> {
     const valid = channelIds.filter(Boolean).slice(0, 50);
     if (!valid.length) return [];
     const body = await this.request<{
       items?: { id?: string; snippet?: RawSnippet & { country?: string; thumbnails?: { default?: { url?: string }; high?: { url?: string } } }; statistics?: { subscriberCount?: string } }[];
-    }>('channels', { part: 'snippet,statistics', id: valid.join(',') }, 1);
+    }>('channels', { part: 'snippet,statistics', id: valid.join(',') });
     return (body.items ?? []).map((it) => ({
       channelId: it.id ?? '',
       title: it.snippet?.title ?? '',
@@ -230,9 +246,9 @@ export class YouTubeClient {
     }));
   }
 
-  /** Create a playlist (OAuth access token required). cost: 50 units. */
+  /** Create a playlist (OAuth access token required). Costs 50 general units. */
   async createPlaylist(accessToken: string, name: string, description: string, privacy: 'public' | 'unlisted' | 'private' = 'private'): Promise<string> {
-    await this.assertQuota(50);
+    await this.assertQuota('general', 50);
     return this.enqueue(async () => {
       const res = await fetch(`${API_BASE}/playlists?part=snippet,status`, {
         method: 'POST',
@@ -243,16 +259,16 @@ export class YouTubeClient {
       if (!res.ok) {
         throw new YouTubeApiError(body?.error?.message ?? `Failed to create playlist (HTTP ${res.status})`, res.status, body?.error?.errors?.[0]?.reason);
       }
-      await this.addQuota(50);
+      await this.addQuota('general', 50);
       return body.id as string;
     });
   }
 
-  /** Add videos to a playlist (OAuth access token required). cost: 50 units each. */
+  /** Add videos to a playlist (OAuth access token required). Costs 50 general units each. */
   async addVideosToPlaylist(accessToken: string, playlistId: string, videoIds: string[]): Promise<void> {
     for (const videoId of videoIds.slice(0, 50)) {
       if (!isValidVideoId(videoId)) continue;
-      await this.assertQuota(50);
+      await this.assertQuota('general', 50);
       await this.enqueue(async () => {
         const res = await fetch(`${API_BASE}/playlistItems?part=snippet`, {
           method: 'POST',
@@ -263,7 +279,7 @@ export class YouTubeClient {
           const body = await res.json().catch(() => ({}));
           throw new YouTubeApiError(body?.error?.message ?? `Failed to add video ${videoId} (HTTP ${res.status})`, res.status, body?.error?.errors?.[0]?.reason);
         }
-        await this.addQuota(50);
+        await this.addQuota('general', 50);
       });
     }
   }

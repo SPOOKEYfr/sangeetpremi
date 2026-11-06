@@ -1,12 +1,12 @@
 /** Minimal hash router for the dashboard. */
-export type Route = 'home' | 'discover' | 'library' | 'playlists' | 'settings' | 'about';
+export type Route = 'home' | 'discover' | 'library' | 'playlists' | 'compare' | 'settings' | 'about';
 
 export interface RouteChange {
   route: Route;
   params: URLSearchParams;
 }
 
-const VALID: Route[] = ['home', 'discover', 'library', 'playlists', 'settings', 'about'];
+const VALID: Route[] = ['home', 'discover', 'library', 'playlists', 'compare', 'settings', 'about'];
 
 export function parseHash(): RouteChange {
   const hash = location.hash.replace(/^#\/?/, '');

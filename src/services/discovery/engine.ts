@@ -12,10 +12,12 @@
  */
 import type { Artist, DiscoveryCategory, DiscoveryDepth, DiscoveryReport, DiscoverySession, Track } from '../../types';
 import { normalizeArtistName, normalizeText } from '../../utils/normalize';
+import { detectLanguage } from '../../utils/language';
 import { randomId, slugify } from '../../utils/id';
 import { isValidVideoId, watchUrl } from '../../utils/sanitize';
 import { classifyVideo } from './classify';
 import { deduplicate, type DedupMode } from './dedup';
+import { mergeSessions, diffRefresh, type MergedDiscovery, type RefreshDiff } from './merge';
 import type { YouTubeClient, YouTubeVideo } from '../youtube/api';
 
 export interface ProgressEvent {
@@ -189,6 +191,7 @@ export class DiscoveryEngine {
         category: cls.category,
         role: cls.role,
         versionTags: cls.versionTags,
+        language: detectLanguage(`${v.title} ${v.channelTitle}`).code,
         dedupeKey: '',
         isDuplicate: false,
         source: 'youtube',
@@ -223,6 +226,42 @@ export class DiscoveryEngine {
     };
     onProgress?.({ phase: 'done', message: `Discovery complete — ${filtered.length} tracks kept.`, done: 1, total: 1 });
     return { session, tracks: [...filtered, ...dedup.duplicates] };
+  }
+
+  /**
+   * Multi-artist discovery: resolve + discover each artist, then merge.
+   * Attribution is preserved per track (track.artist = the artist it was
+   * found for). Progress events are prefixed with the artist name.
+   */
+  async discoverMany(queries: string[], opts: DiscoveryOptions, onProgress?: ProgressCallback): Promise<{ artists: Artist[]; sessions: DiscoverySession[]; merged: MergedDiscovery }> {
+    const artists: Artist[] = [];
+    const sessions: DiscoverySession[] = [];
+    for (const q of queries) {
+      if (opts.signal?.aborted) break;
+      const matches = await this.resolveArtists(q, (e) => onProgress?.({ ...e, message: `[${q}] ${e.message}` }));
+      if (!matches.length) {
+        onProgress?.({ phase: 'resolve', message: `[${q}] no artist match found — skipped.` });
+        continue;
+      }
+      const artist = matches[0]; // multi-artist mode takes the best match; single-artist mode keeps disambiguation UI
+      artists.push(artist);
+      const { session, tracks } = await this.discover(artist, opts, (e) => onProgress?.({ ...e, message: `[${artist.name}] ${e.message}` }));
+      session.tracks = tracks.filter((t) => !t.isDuplicate);
+      sessions.push(session);
+    }
+    const merged = mergeSessions(sessions);
+    return { artists, sessions, merged };
+  }
+
+  /**
+   * Incremental refresh: re-run discovery for an existing session's artist
+   * and diff against the stored tracks. The stored session is NOT modified —
+   * callers merge only what the user approves.
+   */
+  async refresh(session: DiscoverySession, opts: DiscoveryOptions, onProgress?: ProgressCallback): Promise<{ diff: RefreshDiff; fresh: Track[] }> {
+    const { tracks: fresh } = await this.discover(session.artist, opts, onProgress);
+    const diff = diffRefresh(session.tracks, fresh);
+    return { diff, fresh };
   }
 
   /** Validate a user-supplied YouTube URL for the "add missing track" feature. */

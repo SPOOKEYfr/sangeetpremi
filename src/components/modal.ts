@@ -1,4 +1,5 @@
 /** Simple modal dialog built on claymorphism primitives. */
+import { escapeHtml } from '../utils/sanitize';
 export function openModal(title: string, body: HTMLElement | string, actions: { label: string; kind?: 'primary' | 'teal' | 'danger' | 'ghost'; onClick: () => void | Promise<void> }[]): { close: () => void } {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(8,9,12,.66);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9000;padding:20px';
@@ -7,7 +8,7 @@ export function openModal(title: string, body: HTMLElement | string, actions: { 
   card.style.cssText = 'width:min(520px,100%);padding:26px;max-height:85vh;overflow:auto';
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3>${title}</h3>
+      <h3>${escapeHtml(title)}</h3>
       <button class="btn btn-ghost btn-sm modal-close" style="border-radius:10px">✕</button>
     </div>
     <div class="modal-body"></div>

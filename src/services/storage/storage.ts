@@ -83,12 +83,26 @@ export async function importLibraryJson(json: string): Promise<void> {
   await saveLibrary({ ...EMPTY_LIBRARY, ...lib });
 }
 
-/** Wipe all local SangeetPremi data. */
+/**
+ * Every storage key owned by SangeetPremi. wipeAllData removes ALL of them —
+ * including the OAuth token. Remote revocation of the Google grant is a
+ * separate best-effort step (see services/youtube/oauth.revoke); local deletion
+ * is guaranteed even if the network call fails.
+ */
+export const OWNED_STORAGE_KEYS = [
+  LIBRARY_KEY,
+  SETTINGS_KEY,
+  'sangeetpremi.config',
+  'sangeetpremi.quota',
+  'sangeetpremi.oauthToken',
+] as const;
+
+/** Wipe all local SangeetPremi data (library, settings, config, quota, OAuth token). */
 export async function wipeAllData(): Promise<void> {
   const b = backend();
   if (!b) {
     memoryFallback.clear();
     return;
   }
-  await b.remove([LIBRARY_KEY, SETTINGS_KEY, 'sangeetpremi.config', 'sangeetpremi.quota']);
+  await b.remove([...OWNED_STORAGE_KEYS]);
 }

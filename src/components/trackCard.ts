@@ -24,9 +24,8 @@ export function trackCard(t: Track, opts: { selected?: boolean; showCheckbox?: b
   el.innerHTML = `
     ${check}
     <div style="position:relative;flex:none">
-      <img src="${escapeHtml(t.thumbnail ?? '')}" alt="" width="104" height="58" loading="lazy"
-        style="border-radius:12px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3)"
-        onerror="this.style.visibility='hidden'"/>
+      <img class="tc-thumb" src="${escapeHtml(t.thumbnail ?? '')}" alt="" width="104" height="58" loading="lazy"
+        style="border-radius:12px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3)"/>
       ${t.durationSeconds ? `<span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:10.5px;padding:1px 6px;border-radius:6px">${formatDuration(t.durationSeconds)}</span>` : ''}
     </div>
     <div style="flex:1;min-width:0">
@@ -43,6 +42,9 @@ export function trackCard(t: Track, opts: { selected?: boolean; showCheckbox?: b
       <a class="btn btn-ghost btn-sm" href="${watchUrl(t.videoId)}" target="_blank" rel="noopener" title="Open on YouTube">${icon('external', 15)}</a>
     </div>`;
 
+  el.querySelector('.tc-thumb')?.addEventListener('error', (e) => {
+    (e.target as HTMLImageElement).style.visibility = 'hidden';
+  });
   if (opts.showCheckbox) {
     el.querySelector('.track-check')?.addEventListener('click', (e) => {
       e.preventDefault();

@@ -1,0 +1,25 @@
+{
+  "name": "sangeetpremi",
+  "version": "0.1.0",
+  "description": "SangeetPremi — intelligent artist-based music discovery and playlist generation browser extension. Created by SPOOKEYfr.",
+  "license": "GPL-3.0-only",
+  "author": "SPOOKEYfr",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "package": "npm run build && node scripts/package-extension.mjs"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.2.0",
+    "@types/chrome": "^0.0.287",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

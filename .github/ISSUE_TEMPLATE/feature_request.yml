@@ -1,0 +1,63 @@
+name: Feature Request
+description: Suggest an idea or enhancement for SangeetPremi
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an improvement for SangeetPremi! Please share your thoughts below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: Is your feature request related to a problem or limitation? Please describe it clearly.
+      placeholder: I always struggle to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / Feature
+      description: Describe the solution or new capability you would like to see implemented.
+      placeholder: A clear and concise description of what should happen...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you've considered.
+      placeholder: I tried doing...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Component
+      description: Which area of the extension does this feature affect?
+      options:
+        - Discovery Engine & Filters
+        - 14-Category Classifier
+        - Smart Deduplication
+        - Playlist Builder & Reordering
+        - Library & Favorites
+        - Extension Popup / Side Panel
+        - Dashboard UI & Claymorphism Theme
+        - Settings & Data Backup/Restore
+        - YouTube API & OAuth Integration
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or design thoughts about the request.
+    validations:
+      required: false

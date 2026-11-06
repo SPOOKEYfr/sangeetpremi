@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability Disclosure
+    url: https://github.com/SPOOKEYfr/sangeetpremi/security/advisories/new
+    about: Please report security vulnerabilities privately using GitHub Security Advisories.
+  - name: Documentation & Project Status
+    url: https://github.com/SPOOKEYfr/sangeetpremi/blob/main/docs/PROJECT_STATUS.md
+    about: Review current implementation status, architectural decisions, and upcoming roadmap.

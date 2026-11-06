@@ -3,6 +3,19 @@
 All notable changes to SangeetPremi are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-11-06 (Phase B — backend foundation, not deployed)
+### Added
+- `backend/`: zero-runtime-dependency Node.js API skeleton (node:http, TypeScript strict)
+- `/v1` versioned API: health (live) + validated contracts for artists/resolve, discover, discover/:id, discover/:id/events, discover/:id/refresh, videos/:id
+- Consistent success/error envelope; strict input validation; body size limit; JSON-only; CORS allowlist
+- Anonymous client UUID handling (rate-limit identifier, not authentication); per-client + per-IP rate limiting
+- SecretProvider interface with throwing null default — no secrets exist or are committed
+- Method-specific YouTube quota cost table + in-memory quota accountant (search/uploads/general buckets, Pacific-time reset)
+- MetadataProvider / VideoProvider interfaces with NOT_IMPLEMENTED stubs — no live external calls
+- Structured privacy-conscious logging (hashed IPs; never logs bodies/queries/headers)
+- 40 backend unit/integration tests (all passing); backend README with local run instructions
+- docs/ARCHITECTURE_V0.3.md updated with verified quota model (June 2026 buckets) and policy clarifications
+
 ## [0.2.0] — 2026-11-06
 ### Added
 - Playlist builder: drag-and-drop reordering (with keyboard-accessible move buttons), persisted ordering, bulk select/remove, in-playlist search, category filter, extra sort modes, selection statistics
@@ -25,5 +38,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - 35 unit tests; production build + packaging script
 - Documentation: README, setup guide, project status
 
+[0.3.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.3.0
 [0.2.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.2.0
 [0.1.0]: https://github.com/SPOOKEYfr/sangeetpremi/releases/tag/v0.1.0

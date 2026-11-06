@@ -74,6 +74,8 @@ sangeetpremi/
 │   ├── types/          # shared data models
 │   ├── utils/          # normalize, sanitize, id helpers
 │   └── extension/      # popup, sidepanel, background worker, content script
+├── backend/            # zero-dependency Node.js API skeleton (Phase B, v0.3 — not deployed)
+│   └── see backend/README.md
 ├── public/icons/       # generated brand icons
 ├── tests/              # Vitest unit tests
 ├── docs/               # setup guides + PROJECT_STATUS.md

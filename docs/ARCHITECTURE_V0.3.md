@@ -83,10 +83,32 @@ more complete.
 
 ## 4. Quota & compliance facts (verified against current docs, Nov 2026)
 
-- YouTube Data API v3 is free; default **10,000 quota units/day/project**;
-  `search.list` costs **100 units** ⇒ ~100 searches/day/project hard ceiling.
-  Quota cannot be purchased; increases only via Google's audit/extension form,
-  no guaranteed approval [^2][^3].
+- YouTube Data API v3 is free. Since the **June 2026 quota model**, each project
+  gets per day: **100 `search.list` calls** (search bucket), **100 `videos.insert`
+  calls** (upload bucket), and **10,000 units shared by all other methods**
+  (general bucket), resetting at midnight **Pacific Time**. Quota cannot be
+  purchased; increases only via Google's audit/extension form, no guaranteed
+  approval [^2][^3][^5].
+- Costs are **method-specific**, not uniform: `videos.list`, `channels.list`,
+  `playlists.list`, `playlistItems.list` = **1 unit/call** (batch up to 50 ids);
+  `search.list` = 1 call from the search bucket (100/day); writes such as
+  `playlists.insert` / `playlistItems.insert` / `videos.update` = **50 units**;
+  `captions.insert` = 400. **Every page of pagination is another call**, so
+  paging multiplies cost [^5].
+- `playlistItems.list` on a channel's uploads playlist is a **cost-efficient
+  discovery strategy, not a complete catalogue** (it misses videos where the
+  channel is only featured, and anything unlisted/deleted). Search-based
+  discovery is preserved as a **controlled fallback** for those cases.
+- **Caching** of YouTube data must record provenance (source method, fetchedAt
+  timestamp), expiry/refresh policy, and support deletion (user request + cache
+  invalidation on takedown signals). This is specified for Phase D.
+- The anonymous client UUID is an **identifier for rate limiting/usage
+  accounting, not authentication** — it grants no access and is never logged raw.
+- OAuth: the `youtube` scope is **sensitive** ⇒ unverified apps show an
+  "unverified app" screen and are capped at a **permanent 100-new-user lifetime
+  limit per project**; verification requires a verified domain, privacy policy,
+  demo video and scope justification (~10 business days). Restricted scopes
+  (Drive/Gmail) would additionally need a CASA assessment — we do not use them [^4].
 - YouTube API Services Developer Policies: one API Project per API Client;
   credentials must not be shared, distributed, or embedded in open-source
   clients; identity must not be masked [^1]. ⇒ backend-held key is the compliant model.
@@ -177,3 +199,17 @@ layer changes.
 [^2]: https://outlierkit.com/resources/youtube-search-api/
 [^3]: https://embedsocial.com/blog/youtube-api-key/
 [^4]: https://support.google.com/cloud/answer/9110914
+[^5]: https://developers.google.com/youtube/v3/getting-started (quota section) and Google Quota Calculator, verified Nov 2026
+
+## 11. Phase B implementation notes (implemented, locally tested — NOT deployed)
+
+The backend skeleton lives in `backend/` (zero runtime dependencies, Node >= 20,
+`node:http` only): versioned `/v1` router, `GET /v1/health`, strict input
+validation, consistent error envelope, env config validation, `SecretProvider`
+interface with a throwing null default, anonymous client-id handling (identifier
+only), per-client + per-IP sliding-window rate limits, body size limit, CORS
+allowlist, structured privacy-conscious logging (hashed IPs, no bodies), provider
+interfaces with NOT_IMPLEMENTED stubs, and a method-specific quota accountant.
+40 backend tests pass; `tsc` clean; live local run verified (health 200,
+validated discover 501, oversized body 413). Extension v0.2 untouched (56/56
+tests still pass). Nothing deployed; no credentials exist anywhere.

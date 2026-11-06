@@ -1,0 +1,22 @@
+{
+  "name": "sangeetpremi-backend",
+  "version": "0.3.0",
+  "description": "SangeetPremi backend API (Phase B foundation). Created by SPOOKEYfr. Zero runtime dependencies — Node.js built-ins only.",
+  "license": "GPL-3.0-only",
+  "author": "SPOOKEYfr",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsc && node dist/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

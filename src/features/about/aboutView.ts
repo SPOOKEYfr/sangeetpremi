@@ -22,7 +22,7 @@ export function renderAbout(el: HTMLElement): void {
     <section class="clay" style="padding:26px 30px">
       <h3 style="margin-bottom:12px">Credits &amp; Leadership</h3>
       <p style="margin:0 0 10px"><strong style="color:var(--text-1);font-size:15px">Created and developed by SPOOKEYfr</strong></p>
-      <p style="font-size:13px;color:var(--text-2);margin:0;line-height:1.6">Music discovery and metadata are retrieved exclusively through the official Google YouTube Data API v3. SangeetPremi does not host, scrape, download or redistribute any audio files — it organizes verified YouTube links for playback.</p>
+      <p style="font-size:13px;color:var(--text-2);margin:0;line-height:1.6">Canonical discography and recording metadata are retrieved from MusicBrainz and Cover Art Archive under open community standards. SangeetPremi organizes canonical artist recordings, releases, and discographies, with optional playback links to YouTube. SangeetPremi does not host, scrape, download or redistribute any audio files.</p>
     </section>
 
     <section class="clay" style="padding:26px 30px">

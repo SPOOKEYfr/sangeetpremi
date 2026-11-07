@@ -56,21 +56,21 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
 
     <section class="clay" style="padding:26px 30px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
-        <h3 style="margin:0">YouTube connection</h3>
-        <span class="badge ${hasKey ? 'teal' : 'warm'}">${hasKey ? 'API Key Configured' : 'API Key Missing'}</span>
+        <h3 style="margin:0">YouTube connection (Optional)</h3>
+        <span class="badge ${hasKey ? 'teal' : 'muted'}">${hasKey ? 'Configured' : 'Optional · Not configured'}</span>
       </div>
       <p style="font-size:12.5px;margin:0 0 16px">Credentials are stored only in this browser's local extension storage and are sent exclusively to Google. See <code>docs/SETUP_YOUTUBE_API.md</code>.</p>
       
       <div style="background:var(--surface-inset);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:18px;border:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;align-items:flex-start">
         <span style="color:var(--accent-2);flex:none;margin-top:2px">${icon('shield', 18)}</span>
         <div style="font-size:12px;color:var(--text-2);line-height:1.55">
-          <strong style="color:var(--text-1)">Quota &amp; Policy:</strong> Google grants 10,000 free quota units per day. SangeetPremi tracks quota usage on-device and stops before reaching the limit (~1,000 units per standard discovery). No credentials or search data leave your device.
+          <strong style="color:var(--text-1)">Open Discovery is Key-Free:</strong> SangeetPremi explores artist discographies, release groups, and canonical recordings via the open MusicBrainz commons with zero Google API quota consumed. A YouTube Data API key is completely optional, used only if you wish to link playback or create private playlists on YouTube.
         </div>
       </div>
 
-      <label class="label" for="st-key">YouTube Data API key (required for discovery)</label>
+      <label class="label" for="st-key">YouTube Data API key (optional — for stream playback &amp; playlist sync)</label>
       <div style="display:flex;gap:8px;max-width:480px;margin-bottom:14px">
-        <input id="st-key" class="input" type="password" style="flex:1" placeholder="${hasKey ? '•••• configured in local storage ••' : 'Paste your API key'}" autocomplete="off"/>
+        <input id="st-key" class="input" type="password" style="flex:1" placeholder="${hasKey ? '•••• configured in local storage ••' : 'Optional — paste your YouTube API key'}" autocomplete="off"/>
         <button class="btn btn-ghost btn-sm" id="st-key-toggle" type="button" title="Toggle visibility" aria-label="Toggle API key visibility">${icon('eye', 15)}</button>
       </div>
 

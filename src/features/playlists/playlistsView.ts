@@ -75,6 +75,9 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
   const totalSeconds = tracks.reduce((acc, t) => acc + (t.durationSeconds ?? 0), 0);
   const totalDuration = formatDuration(totalSeconds);
 
+  const verifiedVideoIds = p.trackVideoIds.filter((id) => !id.startsWith('mb-'));
+  const unmappedCount = p.trackVideoIds.length - verifiedVideoIds.length;
+
   el.innerHTML = `
   <section class="clay" style="padding:24px 28px">
     <input id="pd-name" class="input" style="font-size:18px;font-weight:700;margin-bottom:10px" value="${escapeHtml(p.name)}" aria-label="Playlist title"/>
@@ -83,14 +86,19 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
       <span class="badge">${p.trackVideoIds.length} tracks</span>
       ${totalDuration ? `<span class="badge muted">${totalDuration}</span>` : ''}
       ${p.youtubePlaylistId ? `<span class="badge teal">on YouTube</span>` : ''}
+      ${unmappedCount > 0 ? `<span class="badge muted" title="Tracks without verified YouTube stream mapping">${unmappedCount} unmapped</span>` : ''}
       ${missing ? `<span class="badge warm">${missing} not in library</span>` : ''}
       <span style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" id="pd-save" title="Save changes">${icon('check', 15)} Save</button>
       <button class="btn btn-ghost btn-sm" id="pd-dup" title="Duplicate playlist">${icon('plus', 15)} Duplicate</button>
       <button class="btn btn-ghost btn-sm" id="pd-export" title="Export as JSON">${icon('download', 15)} Export</button>
       <button class="btn btn-ghost btn-sm" id="pd-del" title="Delete playlist" style="color:var(--danger)">${icon('trash', 15)} Delete</button>
-      <a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(p.trackVideoIds)}" target="_blank" rel="noopener" title="Launch instant YouTube queue">${icon('play', 15)} Play on YouTube</a>
-      <button class="btn btn-teal btn-sm" id="pd-yt" title="Create private YouTube playlist">${icon('youtube', 15)} Create on YouTube</button>
+      ${
+        verifiedVideoIds.length > 0
+          ? `<a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(verifiedVideoIds)}" target="_blank" rel="noopener" title="Launch instant YouTube queue for mapped tracks">${icon('play', 15)} Play on YouTube (${verifiedVideoIds.length})</a>`
+          : `<button class="btn btn-ghost btn-sm" disabled title="No verified YouTube streams mapped for tracks in this playlist" style="opacity:0.6">${icon('play', 15)} No YouTube streams mapped</button>`
+      }
+      <button class="btn btn-teal btn-sm" id="pd-yt" title="Create private YouTube playlist" ${verifiedVideoIds.length === 0 ? 'disabled' : ''}>${icon('youtube', 15)} Create on YouTube</button>
     </div>
     <div id="pd-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </section>`;

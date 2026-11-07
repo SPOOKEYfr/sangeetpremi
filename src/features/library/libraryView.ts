@@ -50,7 +50,7 @@ export function renderLibrary(el: HTMLElement): void {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:12px">
       <div>
         <h2 style="margin-bottom:4px">Your library</h2>
-        <p style="margin:0;font-size:13.5px">${allTracks.length} discovered tracks · ${artists.length} saved artists · ${favs.size} favorites${totalFormatted ? ` · ${totalFormatted} audio` : ''}</p>
+        <p style="margin:0;font-size:13.5px">${allTracks.length} canonical tracks · ${artists.length} saved artists · ${favs.size} favorites${totalFormatted ? ` · ${totalFormatted} audio` : ''}</p>
       </div>
       <button class="btn btn-primary btn-sm" id="lib-discover">${icon('search', 15)} Discover more</button>
     </div>

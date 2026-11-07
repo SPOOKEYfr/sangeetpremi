@@ -17,8 +17,8 @@ async function boot(): Promise<void> {
   <div style="padding:18px 18px 14px">
     <div id="p-brand" style="margin-bottom:14px"></div>
     <form id="p-search" style="display:flex;gap:8px" role="search">
-      <input id="p-q" class="input" style="flex:1;padding:10px 14px;font-size:13.5px" placeholder="Search an artist…" autocomplete="off" aria-label="Search an artist"/>
-      <button class="btn btn-primary btn-sm" style="padding:10px 14px" title="Discover artist" aria-label="Discover artist">${icon('search', 15)}</button>
+      <input id="p-q" class="input" style="flex:1;padding:10px 14px;font-size:13.5px" placeholder="Search artist (MusicBrainz)…" autocomplete="off" aria-label="Search artist on MusicBrainz"/>
+      <button class="btn btn-primary btn-sm" style="padding:10px 14px" title="Explore artist" aria-label="Explore artist">${icon('search', 15)}</button>
     </form>
     ${
       recent.length

@@ -160,6 +160,45 @@
   align-items: start;
 }
 
+.discography-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.release-group-card {
+  padding: 14px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.release-group-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(167, 139, 242, 0.4);
+}
+.release-group-card.active {
+  outline: 2px solid var(--accent-violet);
+}
+
+.disambiguation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: transform var(--dur-fast), border-color var(--dur-fast);
+}
+.disambiguation-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(167, 139, 242, 0.5);
+}
+
 /* Skeleton placeholders */
 .track-skeleton {
   display: flex;

@@ -11,6 +11,7 @@ import type {
 import type {
   CoverArt,
   MusicBrainzRecordingResult,
+  MusicBrainzRecordingYouTubeRelationship,
 } from './index';
 
 export const MUSICBRAINZ_REQUEST_TYPE = 'sangeetpremi:musicbrainz:request' as const;
@@ -48,6 +49,10 @@ export interface MusicBrainzOperationMap {
   getArtistCreditsForReleaseGroup: {
     params: { releaseGroupMBID: string };
     result: MusicBrainzArtistCredit[];
+  };
+  getRecordingYouTubeRelationship: {
+    params: { recordingMBID: string };
+    result: MusicBrainzRecordingYouTubeRelationship;
   };
 }
 
@@ -96,6 +101,7 @@ const OPERATIONS: readonly MusicBrainzOperation[] = [
   'getCoverArtArchive',
   'getCoverArtArchiveByReleaseGroupMBID',
   'getArtistCreditsForReleaseGroup',
+  'getRecordingYouTubeRelationship',
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

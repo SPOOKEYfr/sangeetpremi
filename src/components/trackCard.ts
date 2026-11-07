@@ -7,28 +7,27 @@ import type { Track } from '../types';
 import { formatDuration } from '../utils/normalize';
 import { escapeHtml, watchUrl } from '../utils/sanitize';
 import { icon } from './icons';
-import { isVerifiedYouTubeId } from '../features/discovery/musicbrainzModel';
+import { hasVerifiedRecordingStream, isVerifiedYouTubeId } from '../features/discovery/musicbrainzModel';
 
-export { isVerifiedYouTubeId };
+export { isVerifiedYouTubeId, hasVerifiedRecordingStream };
 
-export function trackCard(
-  t: Track,
-  opts: { selected?: boolean; showCheckbox?: boolean; onToggle?: (id: string) => void; extra?: string } = {},
-): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'clay clay-sm track-card fade-in';
-  el.dataset.videoId = t.videoId;
-  el.setAttribute('role', 'article');
-  el.setAttribute('aria-label', `${t.title} by ${t.artist}`);
-  el.style.cssText =
-    'display:flex;gap:14px;padding:12px 14px;align-items:center;transition:transform .15s, box-shadow .15s;';
-  if (opts.selected) el.style.outline = '2px solid var(--accent-violet)';
+export interface TrackCardOptions {
+  selected?: boolean;
+  showCheckbox?: boolean;
+  onToggle?: (id: string) => void;
+  extra?: string;
+  verifiedStream?: boolean;
+}
 
+/** Generates HTML string representation for a canonical track card. */
+export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
   const check = opts.showCheckbox
     ? `<button class="track-check" role="checkbox" aria-checked="${opts.selected ? 'true' : 'false'}" aria-label="Select ${escapeHtml(t.title)}" title="Select track" style="width:22px;height:22px;border-radius:8px;border:1.5px solid ${opts.selected ? 'var(--accent-violet)' : 'rgba(255,255,255,.2)'};background:${opts.selected ? 'var(--accent-violet)' : 'transparent'};color:#14121f;display:flex;align-items:center;justify-content:center;flex:none">${opts.selected ? icon('check', 13) : ''}</button>`
     : '';
 
-  const hasVerifiedStream = isVerifiedYouTubeId(t.videoId);
+  // A valid YouTube video ID is NOT proof of a verified recording relationship.
+  // Only display "Watch on YouTube" when a genuine verified relationship exists.
+  const isStreamVerified = opts.verifiedStream ?? hasVerifiedRecordingStream(t);
 
   // Album artwork thumbnail with vinyl/disc fallback SVG on error
   const thumbHtml = t.thumbnail
@@ -37,31 +36,27 @@ export function trackCard(
         onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'album-art-fallback\\' style=\\'width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet)\\'>${icon('disc', 22)}</div>'"/>`
     : `<div class="album-art-fallback" style="width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none">${icon('disc', 22)}</div>`;
 
-  // Canonical tags (e.g. 'Album', '2000', 'Single')
+  // Canonical tags (e.g. 'Album', '2000', 'Single') - filter out internal verified-stream marker
   const tagsHtml = (t.versionTags && t.versionTags.length ? t.versionTags : [t.category])
-    .filter(Boolean)
+    .filter((tag) => Boolean(tag) && tag !== 'verified-stream')
     .map((tag) => `<span class="badge muted" style="font-size:11px">${escapeHtml(tag)}</span>`)
     .join('');
 
-  // YouTube navigation controls
+  // YouTube navigation controls: Honest "Unmapped" state with NO search fallback
   let streamActionHtml: string;
-  if (hasVerifiedStream) {
+  if (isStreamVerified) {
     streamActionHtml = `
       <a class="btn btn-ghost btn-sm yt-stream-btn" href="${watchUrl(t.videoId)}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
         <span style="color:#ff5555;display:flex;align-items:center">${icon('youtube', 15)}</span>
         <span style="font-size:12px">Watch ↗</span>
       </a>`;
   } else {
-    // Honest unavailable state with explicit YouTube search fallback
+    // Honest unavailable state with NO search fallback
     streamActionHtml = `
-      <span class="badge muted" title="No verified YouTube stream mapping exists for this canonical recording" style="font-size:10.5px;padding:3px 8px;opacity:0.85">Unmapped</span>
-      <a class="btn btn-ghost btn-sm" href="https://www.youtube.com/results?search_query=${encodeURIComponent(t.artist + ' ' + t.title)}" target="_blank" rel="noopener" title="Search YouTube for this recording (external link)" aria-label="Search YouTube for ${escapeHtml(t.title)}">
-        ${icon('external', 13)}
-        <span style="font-size:11.5px">Search YouTube</span>
-      </a>`;
+      <span class="badge muted" title="No verified YouTube stream mapping exists for this canonical recording" style="font-size:10.5px;padding:3px 8px;opacity:0.85">Unmapped</span>`;
   }
 
-  el.innerHTML = `
+  return `
     ${check}
     <div style="position:relative;flex:none;width:54px;height:54px;display:flex;align-items:center;justify-content:center">
       ${thumbHtml}
@@ -79,6 +74,19 @@ export function trackCard(
       ${opts.extra ?? ''}
       ${streamActionHtml}
     </div>`;
+}
+
+export function trackCard(t: Track, opts: TrackCardOptions = {}): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'clay clay-sm track-card fade-in';
+  el.dataset.videoId = t.videoId;
+  el.setAttribute('role', 'article');
+  el.setAttribute('aria-label', `${t.title} by ${t.artist}`);
+  el.style.cssText =
+    'display:flex;gap:14px;padding:12px 14px;align-items:center;transition:transform .15s, box-shadow .15s;';
+  if (opts.selected) el.style.outline = '2px solid var(--accent-violet)';
+
+  el.innerHTML = trackCardHtml(t, opts);
 
   if (opts.showCheckbox) {
     const checkBtn = el.querySelector('.track-check') as HTMLButtonElement | null;

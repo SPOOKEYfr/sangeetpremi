@@ -21,7 +21,7 @@ export async function searchMusicBrainzArtists(query: string): Promise<MusicBrai
 
   // Check known disambiguation scenarios first (e.g. "rahman", "nirvana", "oasis", "genesis")
   if (DISAMBIGUATION_MAPPINGS[norm]) {
-    return DISAMBIGUATION_MAPPINGS[norm];
+    return DISAMBIGUATION_MAPPINGS[norm].map((a) => ({ ...a, isCuratedPreview: true }));
   }
 
   // Check exact/partial matches in canonical catalog
@@ -34,7 +34,7 @@ export async function searchMusicBrainzArtists(query: string): Promise<MusicBrai
         (a.tags && a.tags.some((t) => t.toLowerCase() === norm))
       );
     })
-    .map((e) => e.artist);
+    .map((e) => ({ ...e.artist, isCuratedPreview: true }));
 
   if (catalogMatches.length > 0) {
     return catalogMatches;
@@ -73,6 +73,7 @@ export async function searchMusicBrainzArtists(query: string): Promise<MusicBrai
             : undefined,
           tags: Array.isArray(item.tags) ? item.tags.slice(0, 5).map((t: any) => t.name) : [],
           score: item.score ? Number(item.score) : undefined,
+          isCuratedPreview: false,
         }));
       }
     }
@@ -83,18 +84,24 @@ export async function searchMusicBrainzArtists(query: string): Promise<MusicBrai
   // Fallback: return any canonical entry that starts with first letter, or all canonical artists
   const fallback = Object.values(CANONICAL_ARTISTS)
     .filter((e) => e.artist.name.toLowerCase().startsWith(norm[0]))
-    .map((e) => e.artist);
+    .map((e) => ({ ...e.artist, isCuratedPreview: true }));
 
-  return fallback.length > 0 ? fallback : Object.values(CANONICAL_ARTISTS).slice(0, 4).map((e) => e.artist);
+  return (fallback.length > 0 ? fallback : Object.values(CANONICAL_ARTISTS).slice(0, 4).map((e) => e.artist)).map(
+    (a) => ({ ...a, isCuratedPreview: true }),
+  );
 }
 
 /**
  * Loads an artist's canonical discography and recordings.
  */
 export async function loadArtistDiscography(artistMbid: string): Promise<ArtistCatalogEntry> {
-  // If artist is in verified canonical catalog, return complete verified dataset
+  // If artist is in verified canonical catalog, return complete verified dataset marked as preview
   if (CANONICAL_ARTISTS[artistMbid]) {
-    return CANONICAL_ARTISTS[artistMbid];
+    const entry = CANONICAL_ARTISTS[artistMbid];
+    return {
+      ...entry,
+      artist: { ...entry.artist, isCuratedPreview: true },
+    };
   }
 
   // Otherwise, attempt live MusicBrainz fetch for release groups and recordings

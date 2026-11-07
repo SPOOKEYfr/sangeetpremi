@@ -22,6 +22,7 @@ import {
   RELEASE_TYPES,
   canonicalRecordingToTrack,
   mbArtistToAppArtist,
+  hasVerifiedRecordingStream,
 } from './musicbrainzModel';
 import { loadArtistDiscography, searchMusicBrainzArtists } from './musicbrainzClient';
 
@@ -282,7 +283,10 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
             <div class="clay clay-sm disambiguation-card" data-id="${escapeHtml(a.id)}" style="${isSelected ? 'outline:2px solid var(--accent-violet);background:var(--bg-3)' : ''}">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                 <span style="font-weight:700;font-size:15px;color:var(--text-1)">${escapeHtml(a.name)}</span>
-                ${a.type ? `<span class="badge muted" style="font-size:11px">${escapeHtml(a.type)}</span>` : ''}
+                <div style="display:flex;gap:4px;align-items:center">
+                  ${a.isCuratedPreview ? '<span class="badge warm" style="font-size:10px">Preview Data</span>' : '<span class="badge teal" style="font-size:10px">Live</span>'}
+                  ${a.type ? `<span class="badge muted" style="font-size:11px">${escapeHtml(a.type)}</span>` : ''}
+                </div>
               </div>
               ${
                 a.disambiguation
@@ -387,8 +391,8 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     const rgs = visibleReleaseGroups();
     const tracks = visibleTracks();
 
-    // Calculate honest stream verification counts
-    const verifiedStreamsCount = state.allTracks.filter((t) => t.videoId && !t.videoId.startsWith('mb-')).length;
+    // Calculate honest stream verification counts based on genuine relationship proof
+    const verifiedStreamsCount = state.allTracks.filter((t) => hasVerifiedRecordingStream(t)).length;
     const unmappedStreamsCount = state.allTracks.length - verifiedStreamsCount;
     const isFav = store.library?.artists[a.id]?.favorite ?? false;
 
@@ -404,6 +408,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         <div style="flex:1;min-width:240px">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <h2 style="margin:0">${escapeHtml(a.name)}</h2>
+            ${a.isCuratedPreview ? '<span class="badge warm" title="Curated offline catalogue entry for demonstration">Preview / Demo Data</span>' : '<span class="badge teal">Live MusicBrainz</span>'}
             <a href="https://musicbrainz.org/artist/${escapeHtml(a.id)}" target="_blank" rel="noopener" class="badge muted" title="Verified MusicBrainz Entity">
               MBID: ${escapeHtml(a.id.slice(0, 8))}… ↗
             </a>
@@ -418,6 +423,13 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
             ${a.country ? `<span>(${escapeHtml(a.country)})</span>` : ''}
             ${a.lifeSpan?.begin ? `<span>Active: ${escapeHtml(a.lifeSpan.begin)}–present</span>` : ''}
           </div>
+          ${
+            a.isCuratedPreview
+              ? `<div style="font-size:12px;color:var(--text-3);margin-top:6px;display:flex;align-items:center;gap:6px">
+                  <span style="color:#f0c9a8">ℹ</span> <span>Curated preview entry (offline sandbox dataset). Live MusicBrainz queries require external network connectivity.</span>
+                </div>`
+              : ''
+          }
         </div>
 
         <button class="btn btn-ghost btn-sm" id="d-fav">${icon('heart', 15)} ${isFav ? 'Favorited' : 'Favorite'}</button>
@@ -426,7 +438,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         </button>
         ${
           verifiedStreamsCount > 0
-            ? `<a class="btn btn-ghost btn-sm" id="d-openyt" href="${playlistUrl([...state.selectedIds].filter((id) => !id.startsWith('mb-')))}" target="_blank" rel="noopener" title="Queue verified streams on YouTube">
+            ? `<a class="btn btn-ghost btn-sm" id="d-openyt" href="${playlistUrl([...state.selectedIds].filter((id) => state.allTracks.some((t) => t.videoId === id && hasVerifiedRecordingStream(t))))}" target="_blank" rel="noopener" title="Queue verified streams on YouTube">
                 ${icon('youtube', 15)} Play on YouTube (${verifiedStreamsCount})
               </a>`
             : ''

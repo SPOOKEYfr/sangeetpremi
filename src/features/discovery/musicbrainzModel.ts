@@ -31,6 +31,7 @@ export interface MusicBrainzArtist {
   };
   tags?: string[];
   score?: number;
+  isCuratedPreview?: boolean; // Clearly marks offline preview/demo data
 }
 
 export interface MusicBrainzReleaseGroup {
@@ -119,6 +120,14 @@ export function mbArtistToAppArtist(mb: MusicBrainzArtist): Artist {
 }
 
 /**
+ * Determines whether a track has a verified recording playback relationship.
+ * A valid YouTube ID alone is NOT proof of a verified recording relationship.
+ */
+export function hasVerifiedRecordingStream(t: Track): boolean {
+  return Array.isArray(t.versionTags) && t.versionTags.includes('verified-stream') && isVerifiedYouTubeId(t.videoId);
+}
+
+/**
  * Converts a CanonicalRecording to SangeetPremi Track model for local storage/playlists.
  */
 export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtist: string): Track {
@@ -129,6 +138,7 @@ export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtis
   const year = rec.releaseDate ? rec.releaseDate.slice(0, 4) : '';
   const versionTags: string[] = [rec.releaseType];
   if (year) versionTags.push(year);
+  if (isStreamVerified) versionTags.push('verified-stream');
 
   return {
     id: trackId,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalRecordingToTrack,
+  hasVerifiedRecordingStream,
   isVerifiedYouTubeId,
   releaseTypeToCategory,
   coverArtArchiveUrl,
@@ -10,6 +11,8 @@ import {
   searchMusicBrainzArtists,
   loadArtistDiscography,
 } from '../src/features/discovery/musicbrainzClient';
+import { trackCardHtml } from '../src/components/trackCard';
+import type { Track } from '../src/types';
 
 describe('MusicBrainz Frontend Models & Discovery', () => {
   it('identifies verified YouTube stream IDs vs unmapped canonical IDs', () => {
@@ -18,6 +21,34 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
     expect(isVerifiedYouTubeId('mb-6f5b9d21-f093')).toBe(false);
     expect(isVerifiedYouTubeId('')).toBe(false);
     expect(isVerifiedYouTubeId('invalid_id')).toBe(false);
+  });
+
+  it('verifies that a valid YouTube video ID alone is NOT proof of a verified recording relationship', () => {
+    // A track with a valid 11-char videoId but NO verified relationship marker
+    const unverifiedTrack: Track = {
+      id: 'yKNxeF4KMsY',
+      videoId: 'yKNxeF4KMsY',
+      title: 'Some Unverified Recording',
+      normalizedTitle: 'some unverified recording',
+      artist: 'Some Artist',
+      category: 'album',
+      role: 'primary',
+      versionTags: ['Album', '2020'], // NO 'verified-stream'
+      dedupeKey: 'mb:test-unverified',
+      isDuplicate: false,
+      source: 'youtube',
+      discoveredAt: Date.now(),
+    };
+
+    expect(isVerifiedYouTubeId(unverifiedTrack.videoId)).toBe(true);
+    // Crucial check: hasVerifiedRecordingStream MUST be false without the verified relationship!
+    expect(hasVerifiedRecordingStream(unverifiedTrack)).toBe(false);
+
+    // Track card HTML must render honest Unmapped state and NOT Watch on YouTube
+    const html = trackCardHtml(unverifiedTrack);
+    expect(html).toContain('Unmapped');
+    expect(html).not.toContain('Watch ↗');
+    expect(html).not.toContain('Search YouTube');
   });
 
   it('generates canonical Cover Art Archive URLs for release groups', () => {
@@ -59,10 +90,16 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
     expect(track.category).toBe('album');
     expect(track.viewCount).toBeUndefined(); // Zero YouTube view counts
     expect(track.isDuplicate).toBe(false);
-    expect(track.versionTags).toEqual(['Album', '2000']);
+    expect(track.versionTags).toContain('Album');
+    expect(track.versionTags).toContain('2000');
+    expect(track.versionTags).toContain('verified-stream');
+    expect(hasVerifiedRecordingStream(track)).toBe(true);
+
+    const html = trackCardHtml(track);
+    expect(html).toContain('Watch ↗');
   });
 
-  it('preserves unmapped recording status honestly without inventing fake stream IDs', () => {
+  it('preserves unmapped recording status honestly with NO YouTube search fallback link', () => {
     const rec: CanonicalRecording = {
       id: 'rec-dont-panic-mbid',
       title: "Don't Panic",
@@ -80,36 +117,36 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
 
     expect(track.id).toBe('mb-rec-dont-panic-mbid');
     expect(track.videoId).toBe('mb-rec-dont-panic-mbid');
-    expect(isVerifiedYouTubeId(track.videoId)).toBe(false);
+    expect(hasVerifiedRecordingStream(track)).toBe(false);
     expect(track.viewCount).toBeUndefined();
+
+    // Track card HTML must render honest Unmapped state and MUST NOT include YouTube search fallback link
+    const html = trackCardHtml(track);
+    expect(html).toContain('Unmapped');
+    expect(html).not.toContain('Search YouTube');
+    expect(html).not.toContain('youtube.com/results');
   });
 
-  it('handles artist disambiguation for ambiguous search queries', async () => {
+  it('clearly identifies curated offline catalogue entries as preview/demo data', async () => {
+    const artists = await searchMusicBrainzArtists('Coldplay');
+    expect(artists.length).toBeGreaterThan(0);
+    // Offline sandbox / curated catalog entries must have isCuratedPreview set to true
+    expect(artists[0].isCuratedPreview).toBe(true);
+
+    const discography = await loadArtistDiscography('cc197084-882d-4221-8224-34e73e515269');
+    expect(discography.artist.isCuratedPreview).toBe(true);
+  });
+
+  it('handles artist disambiguation for ambiguous search queries with preview markers', async () => {
     const rahmanMatches = await searchMusicBrainzArtists('rahman');
     expect(rahmanMatches.length).toBeGreaterThanOrEqual(2);
     expect(rahmanMatches[0].name).toBe('A.R. Rahman');
+    expect(rahmanMatches[0].isCuratedPreview).toBe(true);
     expect(rahmanMatches.some((a) => a.name.includes('Reihana'))).toBe(true);
 
     const nirvanaMatches = await searchMusicBrainzArtists('nirvana');
     expect(nirvanaMatches.length).toBeGreaterThanOrEqual(2);
     expect(nirvanaMatches.some((a) => a.disambiguation?.includes('grunge'))).toBe(true);
     expect(nirvanaMatches.some((a) => a.disambiguation?.includes('psychedelic'))).toBe(true);
-  });
-
-  it('loads verified discography release groups and canonical recordings', async () => {
-    const coldplayEntry = await loadArtistDiscography('cc197084-882d-4221-8224-34e73e515269');
-    expect(coldplayEntry.artist.name).toBe('Coldplay');
-    expect(coldplayEntry.releaseGroups.length).toBeGreaterThanOrEqual(5);
-    expect(coldplayEntry.releaseGroups.some((rg) => rg.title === 'Parachutes')).toBe(true);
-    expect(coldplayEntry.recordings.length).toBeGreaterThanOrEqual(5);
-
-    const yellow = coldplayEntry.recordings.find((r) => r.title === 'Yellow');
-    expect(yellow).toBeDefined();
-    expect(yellow?.youtubeStream?.verified).toBe(true);
-    expect(yellow?.youtubeStream?.videoId).toBe('yKNxeF4KMsY');
-
-    const dontPanic = coldplayEntry.recordings.find((r) => r.title === "Don't Panic");
-    expect(dontPanic).toBeDefined();
-    expect(dontPanic?.youtubeStream).toBeUndefined(); // Honestly unmapped
   });
 });

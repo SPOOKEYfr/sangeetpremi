@@ -7,7 +7,8 @@
  * - sidePanel:      larger discovery experience in Chrome's side panel
  * - scripting:      used only to open the dashboard tab on install/update
  * - identity:       optional OAuth flow for YouTube playlist creation
- * - host permissions limited to YouTube API + YouTube site (discovery source)
+ * - host permissions: MusicBrainz catalogue + Cover Art Archive, plus optional
+ *   YouTube API/site access.
  */
 import { defineManifest } from '@crxjs/vite-plugin';
 
@@ -50,6 +51,8 @@ export default defineManifest({
   options_page: 'src/app/dashboard.html',
   permissions: ['storage', 'sidePanel', 'identity'],
   host_permissions: [
+    'https://musicbrainz.org/*',
+    'https://coverartarchive.org/*',
     'https://www.googleapis.com/*',
     'https://youtube.googleapis.com/*',
     'https://www.youtube.com/*',

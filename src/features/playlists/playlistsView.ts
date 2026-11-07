@@ -4,7 +4,7 @@ import { trackCard } from '../../components/trackCard';
 import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
 import { icon } from '../../components/icons';
-import { escapeHtml, playlistUrl, watchUrl } from '../../utils/sanitize';
+import { escapeHtml, watchUrl } from '../../utils/sanitize';
 import { formatDuration } from '../../utils/normalize';
 import { loadConfig } from '../../services/config';
 import { YouTubeClient } from '../../services/youtube/api';
@@ -49,7 +49,7 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
   el.querySelector('#pl-new')?.addEventListener('click', () => {
     const body = document.createElement('div');
     body.innerHTML = `<label class="label">Playlist name</label><input id="np-name" class="input" placeholder="My playlist"/>`;
-    openModal('New playlist', body, [
+    const modal = openModal('New playlist', body, [
       {
         label: 'Create',
         kind: 'primary',
@@ -57,11 +57,12 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
           const name = (body.querySelector('#np-name') as HTMLInputElement).value.trim();
           if (!name) return;
           const p = store.createPlaylist(name);
+          modal.close();
           toast(`Playlist “${name}” created`, 'success');
           renderPlaylists(el, new URLSearchParams({ id: p.id }));
         },
       },
-      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+      { label: 'Cancel', kind: 'ghost', onClick: () => modal.close() },
     ]);
   });
 
@@ -102,11 +103,11 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
       <button class="btn btn-ghost btn-sm" id="pd-export" title="Export as JSON">${icon('download', 15)} Export</button>
       <button class="btn btn-ghost btn-sm" id="pd-del" title="Delete playlist" style="color:var(--danger)">${icon('trash', 15)} Delete</button>
       ${
-        verifiedVideoIds.length > 0
-          ? `<a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(verifiedVideoIds)}" target="_blank" rel="noopener" title="Launch instant YouTube queue for mapped tracks">${icon('play', 15)} Play on YouTube (${verifiedVideoIds.length})</a>`
-          : `<button class="btn btn-ghost btn-sm" disabled title="No verified YouTube streams mapped for tracks in this playlist" style="opacity:0.6">${icon('play', 15)} No YouTube streams mapped</button>`
+        p.youtubePlaylistId
+          ? `<a class="btn btn-teal btn-sm" id="pd-play" href="https://www.youtube.com/playlist?list=${encodeURIComponent(p.youtubePlaylistId)}" target="_blank" rel="noopener" title="Open synced YouTube playlist">${icon('youtube', 15)} View on YouTube</a>`
+          : ''
       }
-      <button class="btn btn-teal btn-sm" id="pd-yt" title="Create private YouTube playlist" ${verifiedVideoIds.length === 0 ? 'disabled' : ''}>${icon('youtube', 15)} Create on YouTube</button>
+      <button class="btn btn-teal btn-sm" id="pd-yt" title="Create private YouTube playlist" ${tracks.length === 0 ? 'disabled' : ''}>${icon('youtube', 15)} ${p.youtubePlaylistId ? 'Re-sync on YouTube' : 'Create on YouTube'}</button>
     </div>
     <div id="pd-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </section>`;
@@ -146,9 +147,17 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
     renderPlaylists(el.parentElement as HTMLElement, new URLSearchParams({ id: copy.id }));
   });
   el.querySelector('#pd-del')?.addEventListener('click', () => {
-    openModal('Delete playlist', `<p>Delete “${escapeHtml(p.name)}”? This cannot be undone.</p>`, [
-      { label: 'Delete', kind: 'danger', onClick: () => { store.deletePlaylist(p.id); renderPlaylists(el.parentElement as HTMLElement, new URLSearchParams()); } },
-      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+    const modal = openModal('Delete playlist', `<p>Delete “${escapeHtml(p.name)}”? This cannot be undone.</p>`, [
+      {
+        label: 'Delete',
+        kind: 'danger',
+        onClick: () => {
+          store.deletePlaylist(p.id);
+          modal.close();
+          renderPlaylists(el.parentElement as HTMLElement, new URLSearchParams());
+        },
+      },
+      { label: 'Cancel', kind: 'ghost', onClick: () => modal.close() },
     ]);
   });
   el.querySelector('#pd-export')?.addEventListener('click', () => {

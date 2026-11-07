@@ -69,8 +69,9 @@ export interface CanonicalRecording {
   };
 }
 
-export function isVerifiedYouTubeId(videoId: string): boolean {
-  return typeof videoId === 'string' && videoId.length === 11 && !videoId.startsWith('mb-');
+export function isVerifiedYouTubeId(_videoId: string): boolean {
+  // An 11-character YouTube video ID alone is NOT proof of a verified recording relationship.
+  return false;
 }
 
 /**
@@ -121,28 +122,24 @@ export function mbArtistToAppArtist(mb: MusicBrainzArtist): Artist {
 
 /**
  * Determines whether a track has a verified recording playback relationship.
- * A valid YouTube ID alone is NOT proof of a verified recording relationship.
+ * Genuine MusicBrainz URL relationships will be consumed from the backend
+ * once OpenCode supplies the agreed API contract.
+ * Until genuine verification is available, no recordings have a verified relationship.
  */
-export function hasVerifiedRecordingStream(t: Track): boolean {
-  const vid = t.youtubeVideoId ?? t.videoId;
-  return (
-    (t.youtubeVerified && !!vid && isVerifiedYouTubeId(vid)) ||
-    (Array.isArray(t.versionTags) && t.versionTags.includes('verified-stream') && !!vid && isVerifiedYouTubeId(vid))
-  );
+export function hasVerifiedRecordingStream(_t: Track): boolean {
+  return false;
 }
 
 /**
  * Converts a CanonicalRecording to SangeetPremi Track model for local storage/playlists.
  */
 export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtist: string): Track {
-  const isStreamVerified = !!rec.youtubeStream?.verified && !!rec.youtubeStream.videoId;
-  const vid = isStreamVerified ? rec.youtubeStream!.videoId : undefined;
+  // Do not trust hardcoded verified: true or infer verification from 11-char IDs.
+  // Genuine MusicBrainz URL relationships will be consumed once OpenCode supplies the contract.
   const now = Date.now();
-
   const year = rec.releaseDate ? rec.releaseDate.slice(0, 4) : '';
   const versionTags: string[] = [rec.releaseType];
   if (year) versionTags.push(year);
-  if (isStreamVerified) versionTags.push('verified-stream');
 
   return {
     id: rec.id, // Canonical MusicBrainz recording MBID
@@ -164,10 +161,10 @@ export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtis
     source: 'musicbrainz',
     discoveredAt: now,
     lastUpdated: now,
-    youtubeVideoId: vid,
-    videoId: vid,
-    youtubeUrl: vid ? `https://www.youtube.com/watch?v=${vid}` : undefined,
-    youtubeVerified: isStreamVerified,
-    youtubeSource: isStreamVerified ? 'link-out' : 'none',
+    youtubeVideoId: undefined,
+    videoId: undefined,
+    youtubeUrl: undefined,
+    youtubeVerified: false,
+    youtubeSource: 'none',
   };
 }

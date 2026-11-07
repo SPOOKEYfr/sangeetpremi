@@ -11,7 +11,7 @@ import { icon } from '../../components/icons';
 import { trackCard, trackSkeleton } from '../../components/trackCard';
 import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
-import { escapeHtml, playlistUrl } from '../../utils/sanitize';
+import { escapeHtml } from '../../utils/sanitize';
 import type {
   CanonicalRecording,
   MusicBrainzArtist,
@@ -435,19 +435,6 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         <button class="btn btn-teal btn-sm" id="d-playlist" ${state.selectedIds.size ? '' : 'disabled'}>
           ${icon('list', 15)} New playlist (${state.selectedIds.size})
         </button>
-        ${
-          verifiedStreamsCount > 0
-            ? `<a class="btn btn-ghost btn-sm" id="d-openyt" href="${playlistUrl(
-                [...state.selectedIds]
-                  .map((id) => state.allTracks.find((t) => t.id === id))
-                  .filter((t): t is Track => !!t && hasVerifiedRecordingStream(t))
-                  .map((t) => (t.youtubeVideoId ?? t.videoId)!)
-                  .filter((vid): vid is string => typeof vid === 'string' && vid.length > 0),
-              )}" target="_blank" rel="noopener" title="Queue verified streams on YouTube">
-                ${icon('youtube', 15)} Play on YouTube (${verifiedStreamsCount})
-              </a>`
-            : ''
-        }
       </div>
 
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:18px">
@@ -528,19 +515,44 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         <label class="label">Playlist title</label>
         <input id="np-name" class="input" value="${escapeHtml(a.name)} — Essentials" style="margin-bottom:12px"/>
         <p style="font-size:12.5px;color:var(--text-3);margin:0">Includes ${selectedTracks.length} canonical tracks in your local library.</p>`;
-      openModal('Create Playlist', body, [
+      const modal = openModal('Create Playlist', body, [
         {
           label: 'Create',
           kind: 'primary',
           onClick: () => {
             const name = (body.querySelector('#np-name') as HTMLInputElement).value.trim();
             if (!name) return;
+            // Ensure session with all tracks is saved so store.allTracks() resolves them
+            const appArtist: Artist = mbArtistToAppArtist(a);
+            const now = Date.now();
+            store.saveSession({
+              id: `mb-sess-${a.id.slice(0, 8)}`,
+              artist: appArtist,
+              status: 'completed',
+              depth: 'standard',
+              categories: ['album', 'single', 'soundtrack'],
+              tracks: state.allTracks,
+              report: {
+                query: state.query,
+                artistId: appArtist.id,
+                candidatesFound: state.recordings.length,
+                accepted: state.recordings.length,
+                duplicatesRemoved: 0,
+                excluded: 0,
+                exclusionReasons: {},
+                startedAt: now,
+                finishedAt: now,
+              },
+              createdAt: now,
+              updatedAt: now,
+            });
             const p = store.createPlaylist(name, selectedTracks.map((t) => t.id));
-            toast(`Created playlist “${name}” with ${selectedTracks.length} tracks`, 'success');
+            modal.close();
+            toast(`Created playlist “${name}” with ${p.trackIds.length} tracks`, 'success');
             navigate('playlists', { id: p.id });
           },
         },
-        { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+        { label: 'Cancel', kind: 'ghost', onClick: () => modal.close() },
       ]);
     });
 
@@ -591,8 +603,8 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
                 <div style="position:relative;width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:var(--bg-3);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-raised-sm)">
                   ${
                     rg.coverArtUrl
-                      ? `<img src="${escapeHtml(rg.coverArtUrl)}" alt="${escapeHtml(rg.title)}" width="220" height="220" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-violet)\\'>${icon('disc', 48)}</div>'"/>`
-                      : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-violet)">${icon('disc', 48)}</div>`
+                      ? `<img src="${escapeHtml(rg.coverArtUrl)}" alt="${escapeHtml(rg.title)}" width="220" height="220" loading="lazy" class="rg-art-img" style="width:100%;height:100%;object-fit:cover"/>`
+                      : `<div class="rg-art-fallback" style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-violet)">${icon('disc', 48)}</div>`
                   }
                   <span class="badge" style="position:absolute;top:8px;left:8px;font-size:10px;padding:2px 8px;background:rgba(20,18,31,0.85);backdrop-filter:blur(4px)">
                     ${escapeHtml(rg.primaryType)}
@@ -614,6 +626,18 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
             })
             .join('')}
         </div>`;
+
+      // Event-based image error handler for release group artwork (MV3 CSP compliant)
+      contentEl.querySelectorAll('.rg-art-img').forEach((img) => {
+        img.addEventListener('error', () => {
+          const fallback = document.createElement('div');
+          fallback.className = 'rg-art-fallback';
+          fallback.style.cssText =
+            'display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--accent-violet)';
+          fallback.innerHTML = icon('disc', 48);
+          img.replaceWith(fallback);
+        });
+      });
 
       contentEl.querySelectorAll('.release-group-card').forEach((card) => {
         card.addEventListener('click', () => {

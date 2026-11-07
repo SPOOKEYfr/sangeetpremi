@@ -47,6 +47,9 @@ export function watchUrl(videoId: string): string {
 export function playlistUrl(videoIds: string[]): string {
   if (videoIds.length === 0) return 'https://www.youtube.com/';
   const first = encodeURIComponent(videoIds[0]);
-  const rest = videoIds.slice(1, 49).map((id) => `&video_ids=${encodeURIComponent(id)}`).join('');
-  return `https://www.youtube.com/watch?v=${first}&listType=user_uploads${rest}`;
+  if (videoIds.length === 1) {
+    return watchUrl(videoIds[0]);
+  }
+  const rest = videoIds.slice(1, 50).map((id) => encodeURIComponent(id)).join(',');
+  return `https://www.youtube.com/watch?v=${first}&video_ids=${rest}`;
 }

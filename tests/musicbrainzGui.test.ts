@@ -15,16 +15,16 @@ import { trackCardHtml } from '../src/components/trackCard';
 import type { Track } from '../src/types';
 
 describe('MusicBrainz Frontend Models & Discovery', () => {
-  it('identifies verified YouTube stream IDs vs unmapped canonical IDs', () => {
-    expect(isVerifiedYouTubeId('yKNxeF4KMsY')).toBe(true);
-    expect(isVerifiedYouTubeId('dvgZkm1xWPE')).toBe(true);
+  it('identifies that an 11-char YouTube ID alone is NOT proof of verification', () => {
+    // A YouTube ID alone without a genuine verified relationship must never be treated as verified
+    expect(isVerifiedYouTubeId('yKNxeF4KMsY')).toBe(false);
+    expect(isVerifiedYouTubeId('dvgZkm1xWPE')).toBe(false);
     expect(isVerifiedYouTubeId('mb-6f5b9d21-f093')).toBe(false);
     expect(isVerifiedYouTubeId('')).toBe(false);
     expect(isVerifiedYouTubeId('invalid_id')).toBe(false);
   });
 
   it('verifies that a valid YouTube video ID alone is NOT proof of a verified recording relationship', () => {
-    // A track with a valid 11-char videoId but NO verified relationship marker
     const unverifiedTrack: Track = {
       id: 'yKNxeF4KMsY',
       videoId: 'yKNxeF4KMsY',
@@ -33,7 +33,7 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
       artist: 'Some Artist',
       category: 'album',
       role: 'primary',
-      versionTags: ['Album', '2020'], // NO 'verified-stream'
+      versionTags: ['Album', '2020'],
       dedupeKey: 'mb:test-unverified',
       isDuplicate: false,
       discoveredAt: Date.now(),
@@ -41,8 +41,8 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
       youtubeVerified: false,
     };
 
-    expect(isVerifiedYouTubeId(unverifiedTrack.videoId ?? '')).toBe(true);
-    // Crucial check: hasVerifiedRecordingStream MUST be false without the verified relationship!
+    expect(isVerifiedYouTubeId(unverifiedTrack.videoId ?? '')).toBe(false);
+    // hasVerifiedRecordingStream MUST be false without genuine verified relationship
     expect(hasVerifiedRecordingStream(unverifiedTrack)).toBe(false);
 
     // Track card HTML must render honest Unmapped state and NOT Watch on YouTube
@@ -67,7 +67,7 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
     expect(releaseTypeToCategory('Compilation')).toBe('other');
   });
 
-  it('converts canonical recording to Track without YouTube view counts or inferred categories', () => {
+  it('converts canonical recording to Track without YouTube view counts or false verification badges', () => {
     const rec: CanonicalRecording = {
       id: 'rec-coldplay-yellow',
       title: 'Yellow',
@@ -79,15 +79,12 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
       releaseDate: '2000-07-10',
       durationSeconds: 269,
       coverArtUrl: 'https://coverartarchive.org/release-group/c0f99dc2-3580-3be2-8926-ec4be135064e/front-250.jpg',
-      youtubeStream: { videoId: 'yKNxeF4KMsY', verified: true },
+      youtubeStream: undefined,
     };
 
     const track = canonicalRecordingToTrack(rec, 'Coldplay');
 
     expect(track.id).toBe('rec-coldplay-yellow');
-    expect(track.videoId).toBe('yKNxeF4KMsY');
-    expect(track.youtubeVideoId).toBe('yKNxeF4KMsY');
-    expect(track.youtubeVerified).toBe(true);
     expect(track.title).toBe('Yellow');
     expect(track.artist).toBe('Coldplay');
     expect(track.category).toBe('album');
@@ -95,11 +92,12 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
     expect(track.isDuplicate).toBe(false);
     expect(track.versionTags).toContain('Album');
     expect(track.versionTags).toContain('2000');
-    expect(track.versionTags).toContain('verified-stream');
-    expect(hasVerifiedRecordingStream(track)).toBe(true);
+    // Until genuine relationship API from OpenCode is supplied, Yellow does NOT display Watch
+    expect(hasVerifiedRecordingStream(track)).toBe(false);
 
     const html = trackCardHtml(track);
-    expect(html).toContain('Watch ↗');
+    expect(html).toContain('Unmapped');
+    expect(html).not.toContain('Watch ↗');
   });
 
   it('preserves unmapped recording status honestly with NO YouTube search fallback link', () => {
@@ -132,24 +130,23 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
     expect(html).not.toContain('youtube.com/results');
   });
 
-  it('clearly identifies curated offline catalogue entries as preview/demo data', async () => {
-    const artists = await searchMusicBrainzArtists('Coldplay');
+  it('clearly identifies curated offline catalogue entries as preview/demo data in fallback mode', async () => {
+    const artists = await searchMusicBrainzArtists('Coldplay', { allowPreviewFallback: true });
     expect(artists.length).toBeGreaterThan(0);
-    // Offline sandbox / curated catalog entries must have isCuratedPreview set to true
     expect(artists[0].isCuratedPreview).toBe(true);
 
-    const discography = await loadArtistDiscography('cc197084-882d-4221-8224-34e73e515269');
+    const discography = await loadArtistDiscography('cc197084-882d-4221-8224-34e73e515269', { allowPreviewFallback: true });
     expect(discography.artist.isCuratedPreview).toBe(true);
   });
 
-  it('handles artist disambiguation for ambiguous search queries with preview markers', async () => {
-    const rahmanMatches = await searchMusicBrainzArtists('rahman');
+  it('handles artist disambiguation for ambiguous search queries with preview markers in fallback mode', async () => {
+    const rahmanMatches = await searchMusicBrainzArtists('rahman', { allowPreviewFallback: true });
     expect(rahmanMatches.length).toBeGreaterThanOrEqual(2);
     expect(rahmanMatches[0].name).toBe('A.R. Rahman');
     expect(rahmanMatches[0].isCuratedPreview).toBe(true);
     expect(rahmanMatches.some((a) => a.name.includes('Reihana'))).toBe(true);
 
-    const nirvanaMatches = await searchMusicBrainzArtists('nirvana');
+    const nirvanaMatches = await searchMusicBrainzArtists('nirvana', { allowPreviewFallback: true });
     expect(nirvanaMatches.length).toBeGreaterThanOrEqual(2);
     expect(nirvanaMatches.some((a) => a.disambiguation?.includes('grunge'))).toBe(true);
     expect(nirvanaMatches.some((a) => a.disambiguation?.includes('psychedelic'))).toBe(true);

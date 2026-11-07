@@ -30,11 +30,9 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
   const isStreamVerified = opts.verifiedStream ?? hasVerifiedRecordingStream(t);
   const ytVideoId = t.youtubeVideoId ?? t.videoId;
 
-  // Album artwork thumbnail with vinyl/disc fallback SVG on error
+  // Album artwork thumbnail with clean fallback (NO inline onerror to comply with MV3 CSP)
   const thumbHtml = t.thumbnail
-    ? `<img src="${escapeHtml(t.thumbnail)}" alt="" width="54" height="54" loading="lazy"
-        style="border-radius:10px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3);flex:none"
-        onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'album-art-fallback\\' style=\\'width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet)\\'>${icon('disc', 22)}</div>'"/>`
+    ? `<img src="${escapeHtml(t.thumbnail)}" alt="" width="54" height="54" loading="lazy" class="track-thumb-img" style="border-radius:10px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3);flex:none"/>`
     : `<div class="album-art-fallback" style="width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none">${icon('disc', 22)}</div>`;
 
   // Canonical tags (e.g. 'Album', '2000', 'Single') - filter out internal verified-stream marker
@@ -90,6 +88,19 @@ export function trackCard(t: Track, opts: TrackCardOptions = {}): HTMLElement {
   if (opts.selected) el.style.outline = '2px solid var(--accent-violet)';
 
   el.innerHTML = trackCardHtml(t, opts);
+
+  // Proper event-based image error handler (MV3 CSP compliant)
+  const img = el.querySelector('.track-thumb-img') as HTMLImageElement | null;
+  if (img) {
+    img.addEventListener('error', () => {
+      const fallback = document.createElement('div');
+      fallback.className = 'album-art-fallback';
+      fallback.style.cssText =
+        'width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none';
+      fallback.innerHTML = icon('disc', 22);
+      img.replaceWith(fallback);
+    });
+  }
 
   if (opts.showCheckbox) {
     const checkBtn = el.querySelector('.track-check') as HTMLButtonElement | null;

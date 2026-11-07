@@ -118,7 +118,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 269,
         isrc: 'GBAYE0000512',
         coverArtUrl: coverArtArchiveUrl('c0f99dc2-3580-3be2-8926-ec4be135064e'),
-        youtubeStream: { videoId: 'yKNxeF4KMsY', verified: true, title: 'Coldplay - Yellow (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: '42b2914f-4029-4503-be84-b0a701df6084',
@@ -133,7 +133,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 309,
         isrc: 'GBAYE0200782',
         coverArtUrl: coverArtArchiveUrl('5169a9bc-9f7a-3de2-baec-f2e7f864e402'),
-        youtubeStream: { videoId: 'RB-RcX5DS5A', verified: true, title: 'Coldplay - The Scientist (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: 'fa498a58-8687-43cf-bf48-3560731f24d8',
@@ -148,7 +148,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 307,
         isrc: 'GBAYE0200783',
         coverArtUrl: coverArtArchiveUrl('5169a9bc-9f7a-3de2-baec-f2e7f864e402'),
-        youtubeStream: { videoId: 'd1acEVmnVhI', verified: true, title: 'Coldplay - Clocks (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: '27a9d7bb-b9ec-4581-9f93-c9176317b9b1',
@@ -163,7 +163,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 295,
         isrc: 'GBAYE0500115',
         coverArtUrl: coverArtArchiveUrl('6b88b209-4ce4-3bd1-b1e6-231a498be903'),
-        youtubeStream: { videoId: 'k4V3Mo61fJM', verified: true, title: 'Coldplay - Fix You (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: '22830f3c-5353-4886-9fa8-1fefc39a039b',
@@ -178,7 +178,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 242,
         isrc: 'GBAYE0800122',
         coverArtUrl: coverArtArchiveUrl('9215033c-3843-34e1-b197-e7f7fdbe13be'),
-        youtubeStream: { videoId: 'dvgZkm1xWPE', verified: true, title: 'Coldplay - Viva La Vida (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: '4392a9b2-32a2-4a0e-bc43-98fe9c19b882',
@@ -193,7 +193,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         durationSeconds: 278,
         isrc: 'GBAYE1100523',
         coverArtUrl: coverArtArchiveUrl('4eb407eb-c4c0-43ef-b31c-c90a1cf40ef5'),
-        youtubeStream: { videoId: '1G4isv_Fylg', verified: true, title: 'Coldplay - Paradise (Official Video)' },
+        youtubeStream: undefined,
       },
       {
         id: 'bd128a1c-ec81-428a-82cf-f9261a8ef181',
@@ -327,7 +327,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 1,
         durationSeconds: 392,
         coverArtUrl: coverArtArchiveUrl('9bf2639d-2b4a-3fb7-9ba2-66b90f42b323'),
-        youtubeStream: { videoId: 'PQmrmVs10X8', verified: true, title: 'Chaiyya Chaiyya - Dil Se' },
+        youtubeStream: undefined,
       },
       {
         id: '4eb012a9-51a2-4a0b-8d21-f09c82a1705e',
@@ -341,7 +341,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 3,
         durationSeconds: 473,
         coverArtUrl: coverArtArchiveUrl('a11b6982-1436-391a-8bb7-ebfb89e3a640'),
-        youtubeStream: { videoId: 'T94PHkuydcw', verified: true, title: 'Kun Faya Kun - Rockstar' },
+        youtubeStream: undefined,
       },
       {
         id: 'fba14192-302a-4318-91c2-3e284a0c8221',
@@ -355,7 +355,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 12,
         durationSeconds: 319,
         coverArtUrl: coverArtArchiveUrl('2215c0e1-4c12-3837-9759-32d84742f361'),
-        youtubeStream: { videoId: 'xwwAVRyNmgQ', verified: true, title: 'Jai Ho - Slumdog Millionaire' },
+        youtubeStream: undefined,
       },
       {
         id: 'd023a19b-621f-4efc-8bb2-fef1b8317bc7',
@@ -369,7 +369,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 1,
         durationSeconds: 375,
         coverArtUrl: coverArtArchiveUrl('161d9a24-9426-3ce9-8089-63a23a3e6f39'),
-        youtubeStream: { videoId: 'jDn2274wKWg', verified: true, title: 'Maa Tujhe Salaam - Vande Mataram' },
+        youtubeStream: undefined,
       },
       {
         id: 'a921fe14-22b1-419b-8f12-21a48c9b201a',
@@ -477,7 +477,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 1,
         durationSeconds: 262,
         coverArtUrl: coverArtArchiveUrl('bc614a1e-84cb-45c1-90a4-44df0e104ae0'),
-        youtubeStream: { videoId: 'IJq0yyWug1k', verified: true, title: 'Tum Hi Ho - Aashiqui 2' },
+        youtubeStream: undefined,
       },
       {
         id: '12410a8b-44ef-401a-98ba-204192bca10e',
@@ -491,7 +491,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 2,
         durationSeconds: 289,
         coverArtUrl: coverArtArchiveUrl('ec720a4b-911a-463e-bb3e-72bc20e98031'),
-        youtubeStream: { videoId: '284VoJ-Yp44', verified: true, title: 'Channa Mereya - Ae Dil Hai Mushkil' },
+        youtubeStream: undefined,
       },
       {
         id: '7721ab4c-01ef-4231-9a1b-312948bbca12',
@@ -505,7 +505,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 1,
         durationSeconds: 268,
         coverArtUrl: coverArtArchiveUrl('fa8430b1-54cc-46df-9d57-3f3f9821815c'),
-        youtubeStream: { videoId: 'BddP6PYo2gs', verified: true, title: 'Kesariya - Brahmāstra' },
+        youtubeStream: undefined,
       },
       {
         id: '512bca01-8891-42ab-87fa-219481bc09a1',
@@ -577,7 +577,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 12,
         durationSeconds: 275,
         coverArtUrl: coverArtArchiveUrl('92ec84aa-8fa1-41b4-b816-56be794f3152'),
-        youtubeStream: { videoId: 'RxabLA7UQ9k', verified: true, title: 'Time - Hans Zimmer (Inception)' },
+        youtubeStream: undefined,
       },
       {
         id: '812948bb-ca12-4211-9a1b-312948bbca12',
@@ -591,7 +591,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 2,
         durationSeconds: 127,
         coverArtUrl: coverArtArchiveUrl('2fa84b80-ec7b-4ec9-9742-1e90bc7758ea'),
-        youtubeStream: { videoId: '1V_xRb0x9aw', verified: true, title: 'Cornfield Chase - Hans Zimmer' },
+        youtubeStream: undefined,
       },
       {
         id: '912948bb-ca12-4211-9a1b-312948bbca12',
@@ -663,7 +663,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 3,
         durationSeconds: 200,
         coverArtUrl: coverArtArchiveUrl('cb4252dc-fba9-4f76-9c4c-3571d87e07a2'),
-        youtubeStream: { videoId: 'b1kbLwvqugk', verified: true, title: 'Taylor Swift - Anti-Hero' },
+        youtubeStream: undefined,
       },
       {
         id: '42410a8b-44ef-401a-98ba-204192bca10e',
@@ -677,7 +677,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 2,
         durationSeconds: 239,
         coverArtUrl: coverArtArchiveUrl('b14fa5e2-2615-46aa-bd4b-21d989cb2ea4'),
-        youtubeStream: { videoId: 'K-a8s8OLBSE', verified: true, title: 'Taylor Swift - cardigan' },
+        youtubeStream: undefined,
       },
       {
         id: '32410a8b-44ef-401a-98ba-204192bca10e',
@@ -749,7 +749,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 1,
         durationSeconds: 301,
         coverArtUrl: coverArtArchiveUrl('b621e7d8-8ec1-3fbf-a42e-131c93a0a4c5'),
-        youtubeStream: { videoId: 'hTWKbfoikeg', verified: true, title: 'Nirvana - Smells Like Teen Spirit' },
+        youtubeStream: undefined,
       },
       {
         id: '112948bb-ca12-4211-9a1b-312948bbca12',
@@ -763,7 +763,7 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
         trackNumber: 3,
         durationSeconds: 219,
         coverArtUrl: coverArtArchiveUrl('b621e7d8-8ec1-3fbf-a42e-131c93a0a4c5'),
-        youtubeStream: { videoId: 'vabnZ9-ex7o', verified: true, title: 'Nirvana - Come As You Are' },
+        youtubeStream: undefined,
       },
       {
         id: '312948bb-ca12-4211-9a1b-312948bbca12',

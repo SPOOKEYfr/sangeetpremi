@@ -2,7 +2,7 @@
 export function openModal(
   title: string,
   body: HTMLElement | string,
-  actions: { label: string; kind?: 'primary' | 'teal' | 'danger' | 'ghost'; onClick: () => void | Promise<void> }[],
+  actions: { label: string; kind?: 'primary' | 'teal' | 'danger' | 'ghost'; onClick: (close: () => void) => void | Promise<void> }[],
 ): { close: () => void } {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -30,20 +30,6 @@ export function openModal(
   if (typeof body === 'string') bodyEl.innerHTML = body;
   else bodyEl.appendChild(body);
 
-  const actionsEl = card.querySelector('.modal-actions') as HTMLElement;
-  for (const a of actions) {
-    const b = document.createElement('button');
-    b.className = `btn btn-sm ${
-      a.kind === 'primary' ? 'btn-primary' : a.kind === 'teal' ? 'btn-teal' : a.kind === 'danger' ? 'btn-danger' : 'btn-ghost'
-    }`;
-    b.textContent = a.label;
-    b.addEventListener('click', () => void a.onClick());
-    actionsEl.appendChild(b);
-  }
-
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-
   const close = () => {
     window.removeEventListener('keydown', onKeyDown);
     overlay.remove();
@@ -55,6 +41,29 @@ export function openModal(
       close();
     }
   };
+
+  const actionsEl = card.querySelector('.modal-actions') as HTMLElement;
+  for (const a of actions) {
+    const b = document.createElement('button');
+    b.className = `btn btn-sm ${
+      a.kind === 'primary' ? 'btn-primary' : a.kind === 'teal' ? 'btn-teal' : a.kind === 'danger' ? 'btn-danger' : 'btn-ghost'
+    }`;
+    b.textContent = a.label;
+    b.addEventListener('click', async () => {
+      try {
+        await a.onClick(close);
+      } catch (err) {
+        console.error('Modal action error:', err);
+      }
+      if (a.kind === 'ghost' || a.label.toLowerCase() === 'cancel') {
+        close();
+      }
+    });
+    actionsEl.appendChild(b);
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 
   window.addEventListener('keydown', onKeyDown);
   card.querySelector('.modal-close')?.addEventListener('click', close);

@@ -174,18 +174,19 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
   });
 
   el.querySelector('#st-clear-creds')?.addEventListener('click', () => {
-    openModal('Clear credentials', '<p>Remove your saved YouTube API key and OAuth Client ID from local storage?</p>', [
+    const modal = openModal('Clear credentials', '<p>Remove your saved YouTube API key and OAuth Client ID from local storage?</p>', [
       {
         label: 'Clear credentials',
         kind: 'danger',
         onClick: async () => {
           await clearConfig();
           store.updateSettings({ youtubeApiKeyConfigured: false, youtubeClientIdConfigured: false });
+          modal.close();
           toast('Credentials cleared', 'info');
           void renderSettings(el);
         },
       },
-      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+      { label: 'Cancel', kind: 'ghost', onClick: () => modal.close() },
     ]);
   });
 
@@ -225,17 +226,18 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
   });
 
   el.querySelector('#st-wipe')?.addEventListener('click', () => {
-    openModal('Erase all local data', '<p>This deletes all saved artists, discoveries, playlists and settings stored by SangeetPremi on this device.</p>', [
+    const modal = openModal('Erase all local data', '<p>This deletes all saved artists, discoveries, playlists and settings stored by SangeetPremi on this device.</p>', [
       {
         label: 'Erase everything',
         kind: 'danger',
         onClick: async () => {
           await wipeAllData();
+          modal.close();
           toast('All local data erased', 'info');
           location.reload();
         },
       },
-      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+      { label: 'Cancel', kind: 'ghost', onClick: () => modal.close() },
     ]);
   });
 

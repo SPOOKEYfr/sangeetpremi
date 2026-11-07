@@ -2,7 +2,7 @@
 import { store } from '../../state/store';
 import { loadConfig, saveConfig, clearConfig } from '../../services/config';
 import { exportLibraryJson, importLibraryJson, wipeAllData } from '../../services/storage/storage';
-import { DISCOVERY_CATEGORIES, type DiscoveryCategory } from '../../types';
+import { DISCOVERY_CATEGORIES, DEFAULT_SETTINGS, type DiscoveryCategory } from '../../types';
 import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
 import { icon } from '../../components/icons';
@@ -12,48 +12,83 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
   const s = store.settings;
   const cfg = await loadConfig();
   const authorized = await isAuthorized().catch(() => false);
+  const hasKey = !!cfg.youtubeApiKey;
+  const hasClient = !!cfg.youtubeClientId;
 
   el.innerHTML = `
   <div class="fade-in" style="max-width:820px;display:flex;flex-direction:column;gap:22px">
     <section class="clay" style="padding:26px 30px">
       <h3 style="margin-bottom:16px">Appearance</h3>
-      <label class="label">Theme</label>
+      <label class="label" for="st-theme">Theme</label>
       <select id="st-theme" class="select" style="max-width:240px">
-        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark (signature)</option>
-        <option value="system" ${s.theme === 'system' ? 'selected' : ''}>System</option>
+        <option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark (signature claymorphism)</option>
+        <option value="system" ${s.theme === 'system' ? 'selected' : ''}>System preference</option>
       </select>
     </section>
 
     <section class="clay" style="padding:26px 30px">
       <h3 style="margin-bottom:6px">Discovery defaults</h3>
-      <p style="font-size:12.5px;margin:0 0 16px">Used as the starting point for every new discovery.</p>
-      <label class="label">Default depth</label>
-      <select id="st-depth" class="select" style="max-width:240px;margin-bottom:18px">
-        <option value="quick" ${s.defaultDepth === 'quick' ? 'selected' : ''}>Quick (fast, fewer queries)</option>
-        <option value="standard" ${s.defaultDepth === 'standard' ? 'selected' : ''}>Standard</option>
-        <option value="deep" ${s.defaultDepth === 'deep' ? 'selected' : ''}>Deep (more queries, uses more quota)</option>
+      <p style="font-size:12.5px;margin:0 0 16px">Used as the starting baseline for every new artist discovery session.</p>
+      
+      <label class="label" for="st-depth">Default depth</label>
+      <select id="st-depth" class="select" style="max-width:280px;margin-bottom:18px">
+        <option value="quick" ${s.defaultDepth === 'quick' ? 'selected' : ''}>Quick (fewer searches, saves quota)</option>
+        <option value="standard" ${s.defaultDepth === 'standard' ? 'selected' : ''}>Standard (recommended balance)</option>
+        <option value="deep" ${s.defaultDepth === 'deep' ? 'selected' : ''}>Deep (exhaustive catalog exploration)</option>
       </select>
-      <label class="label">Duplicate detection</label>
-      <select id="st-dedup" class="select" style="max-width:280px;margin-bottom:18px">
-        <option value="strict" ${s.dedupStrictness === 'strict' ? 'selected' : ''}>Strict — collapse all versions of a song</option>
-        <option value="balanced" ${s.dedupStrictness === 'balanced' ? 'selected' : ''}>Balanced — keep live/remix/acoustic as separate entries</option>
-        <option value="off" ${s.dedupStrictness === 'off' ? 'selected' : ''}>Off</option>
+
+      <label class="label" for="st-dedup">Duplicate detection</label>
+      <select id="st-dedup" class="select" style="max-width:320px;margin-bottom:18px">
+        <option value="strict" ${s.dedupStrictness === 'strict' ? 'selected' : ''}>Strict — collapse all versions to one representative</option>
+        <option value="balanced" ${s.dedupStrictness === 'balanced' ? 'selected' : ''}>Balanced — preserve distinct live/remix/acoustic renditions</option>
+        <option value="off" ${s.dedupStrictness === 'off' ? 'selected' : ''}>Off — retain all discovered uploads</option>
       </select>
-      <label class="label">Default categories</label>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <label class="label" style="margin:0">Default categories</label>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn btn-ghost btn-sm" id="st-cats-all" style="padding:4px 10px;font-size:11.5px">Select all</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="st-cats-reset" style="padding:4px 10px;font-size:11.5px">Reset defaults</button>
+        </div>
+      </div>
       <div id="st-cats" style="display:flex;flex-wrap:wrap;gap:7px"></div>
     </section>
 
     <section class="clay" style="padding:26px 30px">
-      <h3 style="margin-bottom:6px">YouTube connection</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0">YouTube connection</h3>
+        <span class="badge ${hasKey ? 'teal' : 'warm'}">${hasKey ? 'API Key Configured' : 'API Key Missing'}</span>
+      </div>
       <p style="font-size:12.5px;margin:0 0 16px">Credentials are stored only in this browser's local extension storage and are sent exclusively to Google. See <code>docs/SETUP_YOUTUBE_API.md</code>.</p>
-      <label class="label">YouTube Data API key</label>
-      <input id="st-key" class="input" type="password" style="max-width:420px;margin-bottom:6px" placeholder="${cfg.youtubeApiKey ? '•••• configured ••' : 'Paste your API key'}"/>
-      <label class="label" style="margin-top:14px">OAuth client id (for “Create on YouTube”)</label>
-      <input id="st-client" class="input" type="password" style="max-width:420px;margin-bottom:6px" placeholder="${cfg.youtubeClientId ? '•••• configured ••' : 'Paste your Chrome-extension OAuth client id'}"/>
-      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      
+      <div style="background:var(--surface-inset);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:18px;border:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;align-items:flex-start">
+        <span style="color:var(--accent-2);flex:none;margin-top:2px">${icon('shield', 18)}</span>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.55">
+          <strong style="color:var(--text-1)">Quota &amp; Policy:</strong> Google grants 10,000 free quota units per day. SangeetPremi tracks quota usage on-device and stops before reaching the limit (~1,000 units per standard discovery). No credentials or search data leave your device.
+        </div>
+      </div>
+
+      <label class="label" for="st-key">YouTube Data API key (required for discovery)</label>
+      <div style="display:flex;gap:8px;max-width:480px;margin-bottom:14px">
+        <input id="st-key" class="input" type="password" style="flex:1" placeholder="${hasKey ? '•••• configured in local storage ••' : 'Paste your API key'}" autocomplete="off"/>
+        <button class="btn btn-ghost btn-sm" id="st-key-toggle" type="button" title="Toggle visibility" aria-label="Toggle API key visibility">${icon('eye', 15)}</button>
+      </div>
+
+      <label class="label" for="st-client">OAuth client ID (optional — for “Create on YouTube”)</label>
+      <div style="display:flex;gap:8px;max-width:480px;margin-bottom:6px">
+        <input id="st-client" class="input" type="password" style="flex:1" placeholder="${hasClient ? '•••• configured in local storage ••' : 'Paste your Chrome OAuth client ID'}" autocomplete="off"/>
+        <button class="btn btn-ghost btn-sm" id="st-client-toggle" type="button" title="Toggle visibility" aria-label="Toggle client ID visibility">${icon('eye', 15)}</button>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary btn-sm" id="st-save-creds">${icon('check', 14)} Save credentials</button>
         <button class="btn btn-ghost btn-sm" id="st-clear-creds">Clear</button>
-        ${authorized ? '<span class="badge teal">YouTube account connected</span> <button class="btn btn-ghost btn-sm" id="st-revoke">Disconnect</button>' : '<span class="badge muted">YouTube account not connected</span>'}
+        <span style="flex:1"></span>
+        ${
+          authorized
+            ? '<span class="badge teal">YouTube account connected</span> <button class="btn btn-ghost btn-sm" id="st-revoke">Disconnect</button>'
+            : '<span class="badge muted">YouTube account not connected</span>'
+        }
       </div>
     </section>
 
@@ -68,6 +103,7 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     </section>
   </div>`;
 
+  // Default categories chips
   const catWrap = el.querySelector('#st-cats') as HTMLElement;
   const cats = new Set<DiscoveryCategory>(s.defaultCategories);
   for (const c of DISCOVERY_CATEGORIES) {
@@ -82,6 +118,40 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     });
     catWrap.appendChild(b);
   }
+
+  el.querySelector('#st-cats-all')?.addEventListener('click', () => {
+    for (const c of DISCOVERY_CATEGORIES) cats.add(c.id);
+    catWrap.querySelectorAll('.chip').forEach((b) => b.classList.add('active'));
+    store.updateSettings({ defaultCategories: [...cats] });
+  });
+
+  el.querySelector('#st-cats-reset')?.addEventListener('click', () => {
+    cats.clear();
+    for (const c of DEFAULT_SETTINGS.defaultCategories) cats.add(c);
+    catWrap.querySelectorAll('.chip').forEach((b) => {
+      const matched = DISCOVERY_CATEGORIES.find((x) => x.label === b.textContent);
+      if (matched && cats.has(matched.id)) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    store.updateSettings({ defaultCategories: [...cats] });
+  });
+
+  // Password visibility toggles
+  const keyInput = el.querySelector('#st-key') as HTMLInputElement;
+  const keyToggle = el.querySelector('#st-key-toggle') as HTMLButtonElement;
+  keyToggle?.addEventListener('click', () => {
+    const isPass = keyInput.type === 'password';
+    keyInput.type = isPass ? 'text' : 'password';
+    keyToggle.innerHTML = icon(isPass ? 'eyeOff' : 'eye', 15);
+  });
+
+  const clientInput = el.querySelector('#st-client') as HTMLInputElement;
+  const clientToggle = el.querySelector('#st-client-toggle') as HTMLButtonElement;
+  clientToggle?.addEventListener('click', () => {
+    const isPass = clientInput.type === 'password';
+    clientInput.type = isPass ? 'text' : 'password';
+    clientToggle.innerHTML = icon(isPass ? 'eyeOff' : 'eye', 15);
+  });
 
   el.querySelector('#st-theme')?.addEventListener('change', (e) => store.updateSettings({ theme: (e.target as HTMLSelectElement).value as 'dark' | 'system' }));
   el.querySelector('#st-depth')?.addEventListener('change', (e) => store.updateSettings({ defaultDepth: (e.target as HTMLSelectElement).value as typeof s.defaultDepth }));
@@ -100,18 +170,31 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
       youtubeClientIdConfigured: !!(client || current.youtubeClientId),
     });
     toast('Credentials saved locally', 'success');
-  });
-  el.querySelector('#st-clear-creds')?.addEventListener('click', async () => {
-    await clearConfig();
-    store.updateSettings({ youtubeApiKeyConfigured: false, youtubeClientIdConfigured: false });
-    toast('Credentials cleared', 'info');
     void renderSettings(el);
   });
+
+  el.querySelector('#st-clear-creds')?.addEventListener('click', () => {
+    openModal('Clear credentials', '<p>Remove your saved YouTube API key and OAuth Client ID from local storage?</p>', [
+      {
+        label: 'Clear credentials',
+        kind: 'danger',
+        onClick: async () => {
+          await clearConfig();
+          store.updateSettings({ youtubeApiKeyConfigured: false, youtubeClientIdConfigured: false });
+          toast('Credentials cleared', 'info');
+          void renderSettings(el);
+        },
+      },
+      { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+    ]);
+  });
+
   el.querySelector('#st-revoke')?.addEventListener('click', async () => {
     await revoke();
     toast('Disconnected from YouTube', 'info');
     void renderSettings(el);
   });
+
   el.querySelector('#st-export')?.addEventListener('click', async () => {
     const json = await exportLibraryJson();
     const blob = new Blob([json], { type: 'application/json' });
@@ -122,6 +205,7 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     URL.revokeObjectURL(a.href);
     toast('Backup exported', 'success');
   });
+
   el.querySelector('#st-import')?.addEventListener('click', () => {
     const inp = document.createElement('input');
     inp.type = 'file';
@@ -139,6 +223,7 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     });
     inp.click();
   });
+
   el.querySelector('#st-wipe')?.addEventListener('click', () => {
     openModal('Erase all local data', '<p>This deletes all saved artists, discoveries, playlists and settings stored by SangeetPremi on this device.</p>', [
       {
@@ -154,10 +239,5 @@ export async function renderSettings(el: HTMLElement): Promise<void> {
     ]);
   });
 
-  // persist default categories when the view unloads via any action
-  const unsub = store.subscribe(() => {
-    /* categories saved on explicit change below */
-  });
-  void unsub;
   catWrap.addEventListener('click', () => store.updateSettings({ defaultCategories: [...cats] }), true);
 }

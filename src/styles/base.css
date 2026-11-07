@@ -21,6 +21,31 @@ a:hover { text-decoration: underline; }
 button { font-family: inherit; cursor: pointer; }
 ::selection { background: var(--accent-soft); }
 
+/* accessibility skip link */
+.skip-link {
+  position: absolute;
+  top: -60px;
+  left: 18px;
+  background: var(--accent-violet);
+  color: #101115;
+  padding: 10px 18px;
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  z-index: 10000;
+  box-shadow: var(--shadow-raised);
+  transition: top var(--dur-fast) var(--ease);
+}
+.skip-link:focus {
+  top: 18px;
+}
+
+/* focus visible indicators */
+:focus-visible {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
+
 /* scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 8px; border: 2px solid var(--bg-0); }

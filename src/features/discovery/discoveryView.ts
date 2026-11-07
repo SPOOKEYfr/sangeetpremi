@@ -10,7 +10,7 @@ import { DiscoveryEngine, type ProgressEvent } from '../../services/discovery/en
 import type { Artist, DiscoveryCategory, DiscoveryDepth, DiscoverySession, Track } from '../../types';
 import { DISCOVERY_CATEGORIES } from '../../types';
 import { icon } from '../../components/icons';
-import { trackCard, categoryLabel } from '../../components/trackCard';
+import { trackCard, trackSkeleton, categoryLabel } from '../../components/trackCard';
 import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
 import { escapeHtml } from '../../utils/sanitize';
@@ -49,15 +49,22 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       <h2 style="margin-bottom:6px">Discover an artist</h2>
       <p style="margin:0 0 18px;font-size:13.5px">We'll search YouTube, classify every result and remove duplicates automatically.</p>
       <form id="d-search" style="display:flex;gap:12px;flex-wrap:wrap">
-        <input id="d-q" class="input" style="flex:1;min-width:240px;font-size:15px" placeholder="Artist, singer, band…" value="${escapeHtml(state.query)}" autocomplete="off"/>
-        <select id="d-depth" class="select" style="width:auto" title="Discovery depth">
+        <input id="d-q" class="input" style="flex:1;min-width:240px;font-size:15px" placeholder="Artist, singer, band…" value="${escapeHtml(state.query)}" autocomplete="off" aria-label="Artist name for discovery"/>
+        <select id="d-depth" class="select" style="width:auto" title="Discovery depth" aria-label="Discovery depth">
           <option value="quick">Quick</option>
           <option value="standard" selected>Standard</option>
           <option value="deep">Deep</option>
         </select>
         <button class="btn btn-primary" type="submit" id="d-go">${icon('search', 16)} Discover</button>
       </form>
-      <div id="d-categories" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:16px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.04em">Categories to include</span>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn btn-ghost btn-sm" id="d-cats-all" style="padding:4px 10px;font-size:11.5px">Select all</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="d-cats-def" style="padding:4px 10px;font-size:11.5px">Reset default</button>
+        </div>
+      </div>
+      <div id="d-categories" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px"></div>
     </section>
     <div id="d-progress"></div>
     <div id="d-artists"></div>
@@ -80,6 +87,22 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     });
     catWrap.appendChild(b);
   }
+
+  el.querySelector('#d-cats-all')?.addEventListener('click', () => {
+    for (const c of DISCOVERY_CATEGORIES) selectedCats.add(c.id);
+    catWrap.querySelectorAll('.chip').forEach((b) => b.classList.add('active'));
+  });
+
+  el.querySelector('#d-cats-def')?.addEventListener('click', () => {
+    selectedCats.clear();
+    for (const c of store.settings.defaultCategories) selectedCats.add(c);
+    catWrap.querySelectorAll('.chip').forEach((b) => {
+      const label = b.textContent;
+      const matched = DISCOVERY_CATEGORIES.find((x) => x.label === label);
+      if (matched && selectedCats.has(matched.id)) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+  });
 
   const depthSel = el.querySelector('#d-depth') as HTMLSelectElement;
   depthSel.value = store.settings.defaultDepth;
@@ -248,7 +271,17 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     const wrap = el.querySelector('#d-results') as HTMLElement;
     const s = state.session;
     if (!s) {
-      wrap.innerHTML = '';
+      if (state.running) {
+        wrap.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+            <div style="font-size:12.5px;color:var(--text-3);margin-bottom:4px">Discovering tracks and categorizing releases…</div>
+            <div id="d-skeletons" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>`;
+        const skWrap = wrap.querySelector('#d-skeletons')!;
+        for (let i = 0; i < 5; i++) skWrap.appendChild(trackSkeleton());
+      } else {
+        wrap.innerHTML = '';
+      }
       return;
     }
     const tracks = visibleTracks();
@@ -279,12 +312,12 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     </section>
 
     <section style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-      <input id="d-filter" class="input" style="width:230px;padding:9px 14px;font-size:13px" placeholder="Filter results…" value="${escapeHtml(state.filterText)}"/>
-      <select id="d-cat" class="select" style="width:auto;padding:9px 14px;font-size:13px">
+      <input id="d-filter" class="input" style="width:230px;padding:9px 14px;font-size:13px" placeholder="Filter results…" value="${escapeHtml(state.filterText)}" aria-label="Filter results"/>
+      <select id="d-cat" class="select" style="width:auto;padding:9px 14px;font-size:13px" aria-label="Filter by category">
         <option value="all">All categories</option>
         ${DISCOVERY_CATEGORIES.map((c) => `<option value="${c.id}" ${state.filterCategory === c.id ? 'selected' : ''}>${c.label}</option>`).join('')}
       </select>
-      <select id="d-sort" class="select" style="width:auto;padding:9px 14px;font-size:13px">
+      <select id="d-sort" class="select" style="width:auto;padding:9px 14px;font-size:13px" aria-label="Sort tracks">
         <option value="viewCount" ${state.sortKey === 'viewCount' ? 'selected' : ''}>Most popular</option>
         <option value="publishedAt" ${state.sortKey === 'publishedAt' ? 'selected' : ''}>Newest</option>
         <option value="title" ${state.sortKey === 'title' ? 'selected' : ''}>A–Z</option>
@@ -300,7 +333,18 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     const listEl = wrap.querySelector('#d-list') as HTMLElement;
     if (!tracks.length) {
-      listEl.innerHTML = `<div class="clay clay-sm empty-state" style="padding:34px"><div class="glyph">🎧</div><h3>No tracks match these filters</h3><p>Try clearing the filter or enabling duplicates.</p></div>`;
+      listEl.innerHTML = `<div class="clay clay-sm empty-state" style="padding:34px">
+        <div class="glyph">🎧</div>
+        <h3>No tracks match these filters</h3>
+        <p style="margin-bottom:16px">Try resetting the category filter, clearing your search query, or enabling duplicate entries.</p>
+        <button class="btn btn-primary btn-sm" id="d-reset-filters">${icon('refresh', 14)} Reset all filters</button>
+      </div>`;
+      listEl.querySelector('#d-reset-filters')?.addEventListener('click', () => {
+        state.filterText = '';
+        state.filterCategory = 'all';
+        state.showDuplicates = false;
+        renderResults();
+      });
     }
     // Render in chunks to keep the UI responsive for large libraries.
     const CHUNK = 40;

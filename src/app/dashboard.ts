@@ -29,14 +29,15 @@ async function boot(): Promise<void> {
   await store.init();
   const app = document.getElementById('app')!;
   app.innerHTML = `
-  <div style="display:flex;min-height:100vh">
-    <aside id="sidebar" class="clay" style="width:236px;flex:none;margin:18px 0 18px 18px;padding:22px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:18px;height:calc(100vh - 36px);border-radius:var(--r-xl)">
+  <a href="#view" class="skip-link">Skip to main content</a>
+  <div class="app-shell">
+    <aside id="sidebar" class="clay app-sidebar" role="navigation" aria-label="Main Navigation">
       <div id="brand" style="padding:4px 10px 18px"></div>
       <nav id="nav" style="display:flex;flex-direction:column;gap:4px"></nav>
       <div style="flex:1"></div>
-      <div style="padding:10px;font-size:11px;color:var(--text-3);line-height:1.5">Created &amp; developed by<br/><strong style="color:var(--text-2)">SPOOKEYfr</strong></div>
+      <div class="sidebar-footer" style="padding:10px;font-size:11px;color:var(--text-3);line-height:1.5">Created &amp; developed by<br/><strong style="color:var(--text-2)">SPOOKEYfr</strong></div>
     </aside>
-    <main id="view" style="flex:1;padding:26px 34px 60px;min-width:0"></main>
+    <main id="view" class="app-view" role="main" tabindex="-1"></main>
   </div>`;
   document.getElementById('brand')!.appendChild(brandHeader(36));
 
@@ -45,10 +46,21 @@ async function boot(): Promise<void> {
     const a = document.createElement('a');
     a.href = `#/${item.route}`;
     a.dataset.route = item.route;
-    a.style.cssText = 'display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:14px;color:var(--text-2);font-weight:550;font-size:14px;transition:all .15s';
+    a.style.cssText =
+      'display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:14px;color:var(--text-2);font-weight:550;font-size:14px;transition:all .15s;text-decoration:none;';
     a.innerHTML = `${icon(item.icon, 18)}<span>${item.label}</span>`;
-    a.addEventListener('mouseenter', () => { a.style.background = 'rgba(255,255,255,0.05)'; a.style.color = 'var(--text-1)'; });
-    a.addEventListener('mouseleave', () => { a.style.background = 'transparent'; a.style.color = 'var(--text-2)'; });
+    a.addEventListener('mouseenter', () => {
+      if (a.getAttribute('aria-current') !== 'page') {
+        a.style.background = 'rgba(255,255,255,0.05)';
+        a.style.color = 'var(--text-1)';
+      }
+    });
+    a.addEventListener('mouseleave', () => {
+      if (a.getAttribute('aria-current') !== 'page') {
+        a.style.background = 'transparent';
+        a.style.color = 'var(--text-2)';
+      }
+    });
     nav.appendChild(a);
   }
 
@@ -70,6 +82,8 @@ async function boot(): Promise<void> {
       a.style.background = active ? 'var(--accent-soft)' : 'transparent';
       a.style.color = active ? '#d3ccff' : 'var(--text-2)';
       a.style.fontWeight = active ? '700' : '550';
+      if (active) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     }
     view.innerHTML = '';
     void renderers[route](view, params);

@@ -121,7 +121,7 @@ export function renderHome(el: HTMLElement): void {
             ? `<div style="display:flex;flex-direction:column;gap:8px">${playlists
                 .map(
                   (p) =>
-                    `<button class="chip recent-p" data-id="${p.id}" style="text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 16px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${icon('list', 14)} ${escapeHtml(p.name)}</span><span class="badge muted" style="flex:none">${p.trackVideoIds.length} tracks</span></button>`,
+                    `<button class="chip recent-p" data-id="${p.id}" style="text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 16px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${icon('list', 14)} ${escapeHtml(p.name)}</span><span class="badge muted" style="flex:none">${p.trackIds?.length ?? p.trackVideoIds?.length ?? 0} tracks</span></button>`,
                 )
                 .join('')}</div>`
             : empty('No playlists created yet.')

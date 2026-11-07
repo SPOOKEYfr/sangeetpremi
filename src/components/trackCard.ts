@@ -28,6 +28,7 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
   // A valid YouTube video ID is NOT proof of a verified recording relationship.
   // Only display "Watch on YouTube" when a genuine verified relationship exists.
   const isStreamVerified = opts.verifiedStream ?? hasVerifiedRecordingStream(t);
+  const ytVideoId = t.youtubeVideoId ?? t.videoId;
 
   // Album artwork thumbnail with vinyl/disc fallback SVG on error
   const thumbHtml = t.thumbnail
@@ -37,16 +38,17 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
     : `<div class="album-art-fallback" style="width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none">${icon('disc', 22)}</div>`;
 
   // Canonical tags (e.g. 'Album', '2000', 'Single') - filter out internal verified-stream marker
-  const tagsHtml = (t.versionTags && t.versionTags.length ? t.versionTags : [t.category])
-    .filter((tag) => Boolean(tag) && tag !== 'verified-stream')
+  const tags = (t.versionTags && t.versionTags.length ? t.versionTags : (t.category ? [t.category] : []))
+    .filter((tag) => Boolean(tag) && tag !== 'verified-stream');
+  const tagsHtml = tags
     .map((tag) => `<span class="badge muted" style="font-size:11px">${escapeHtml(tag)}</span>`)
     .join('');
 
   // YouTube navigation controls: Honest "Unmapped" state with NO search fallback
   let streamActionHtml: string;
-  if (isStreamVerified) {
+  if (isStreamVerified && ytVideoId) {
     streamActionHtml = `
-      <a class="btn btn-ghost btn-sm yt-stream-btn" href="${watchUrl(t.videoId)}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
+      <a class="btn btn-ghost btn-sm yt-stream-btn" href="${escapeHtml(t.youtubeUrl ?? watchUrl(ytVideoId))}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
         <span style="color:#ff5555;display:flex;align-items:center">${icon('youtube', 15)}</span>
         <span style="font-size:12px">Watch ↗</span>
       </a>`;
@@ -79,7 +81,8 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
 export function trackCard(t: Track, opts: TrackCardOptions = {}): HTMLElement {
   const el = document.createElement('div');
   el.className = 'clay clay-sm track-card fade-in';
-  el.dataset.videoId = t.videoId;
+  el.dataset.id = t.id;
+  el.dataset.videoId = t.youtubeVideoId ?? t.videoId ?? t.id;
   el.setAttribute('role', 'article');
   el.setAttribute('aria-label', `${t.title} by ${t.artist}`);
   el.style.cssText =
@@ -93,19 +96,19 @@ export function trackCard(t: Track, opts: TrackCardOptions = {}): HTMLElement {
     checkBtn?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      opts.onToggle?.(t.videoId);
+      opts.onToggle?.(t.id);
     });
     checkBtn?.addEventListener('keydown', (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
-        opts.onToggle?.(t.videoId);
+        opts.onToggle?.(t.id);
       }
     });
   }
 
   el.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('a,button')) return;
-    opts.onToggle?.(t.videoId);
+    opts.onToggle?.(t.id);
   });
 
   return el;

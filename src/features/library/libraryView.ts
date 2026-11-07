@@ -30,13 +30,13 @@ export function renderLibrary(el: HTMLElement): void {
   // Filter tracks
   let filtered = allTracks;
   if (state.tab === 'favorites') {
-    filtered = filtered.filter((t) => favs.has(t.videoId));
+    filtered = filtered.filter((t) => favs.has(t.id) || (t.videoId ? favs.has(t.videoId) : false));
   }
   if (state.artistId) {
     const artist = artists.find((a) => a.id === state.artistId);
     if (artist) {
       filtered = filtered.filter(
-        (t) => (t.channelId && t.channelId === artist.channelId) || t.artist.toLowerCase().includes(artist.name.toLowerCase()),
+        (t) => t.artist.toLowerCase().includes(artist.name.toLowerCase()),
       );
     }
   }
@@ -137,8 +137,8 @@ export function renderLibrary(el: HTMLElement): void {
   }
 
   for (const t of filtered) {
-    const isFav = favs.has(t.videoId);
-    const favBtn = `<button class="btn btn-ghost btn-sm lib-fav" data-id="${t.videoId}" title="${isFav ? 'Remove favorite' : 'Add favorite'}" aria-label="${isFav ? 'Remove favorite' : 'Add favorite'}" style="color:${isFav ? 'var(--danger)' : 'var(--text-3)'}">${icon('heart', 15)}</button>`;
+    const isFav = favs.has(t.id) || (t.videoId ? favs.has(t.videoId) : false);
+    const favBtn = `<button class="btn btn-ghost btn-sm lib-fav" data-id="${escapeHtml(t.id)}" title="${isFav ? 'Remove favorite' : 'Add favorite'}" aria-label="${isFav ? 'Remove favorite' : 'Add favorite'}" style="color:${isFav ? 'var(--danger)' : 'var(--text-3)'}">${icon('heart', 15)}</button>`;
     list.appendChild(trackCard(t, { extra: favBtn }));
   }
 

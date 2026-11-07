@@ -84,8 +84,10 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
 
     const track = canonicalRecordingToTrack(rec, 'Coldplay');
 
-    expect(track.id).toBe('yKNxeF4KMsY');
+    expect(track.id).toBe('rec-coldplay-yellow');
     expect(track.videoId).toBe('yKNxeF4KMsY');
+    expect(track.youtubeVideoId).toBe('yKNxeF4KMsY');
+    expect(track.youtubeVerified).toBe(true);
     expect(track.title).toBe('Yellow');
     expect(track.artist).toBe('Coldplay');
     expect(track.category).toBe('album');
@@ -116,8 +118,10 @@ describe('MusicBrainz Frontend Models & Discovery', () => {
 
     const track = canonicalRecordingToTrack(rec, 'Coldplay');
 
-    expect(track.id).toBe('mb-rec-dont-panic-mbid');
-    expect(track.videoId).toBe('mb-rec-dont-panic-mbid');
+    expect(track.id).toBe('rec-dont-panic-mbid');
+    expect(track.videoId).toBeUndefined();
+    expect(track.youtubeVideoId).toBeUndefined();
+    expect(track.youtubeVerified).toBe(false);
     expect(hasVerifiedRecordingStream(track)).toBe(false);
     expect(track.viewCount).toBeUndefined();
 

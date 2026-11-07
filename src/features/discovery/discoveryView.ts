@@ -203,12 +203,11 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       // Convert canonical recordings to application tracks for local storage and playlists
       state.allTracks = entry.recordings.map((rec) => canonicalRecordingToTrack(rec, mbArtist.name));
 
-      // Select tracks with verified YouTube streams by default for instant playback
+      // Select tracks by canonical recording MBID
       state.selectedIds = new Set(
         state.allTracks
-          .filter((t) => t.videoId && !t.videoId.startsWith('mb-'))
           .slice(0, 30)
-          .map((t) => t.videoId),
+          .map((t) => t.id),
       );
 
       // Persist artist in local store
@@ -438,7 +437,13 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         </button>
         ${
           verifiedStreamsCount > 0
-            ? `<a class="btn btn-ghost btn-sm" id="d-openyt" href="${playlistUrl([...state.selectedIds].filter((id) => state.allTracks.some((t) => t.videoId === id && hasVerifiedRecordingStream(t))))}" target="_blank" rel="noopener" title="Queue verified streams on YouTube">
+            ? `<a class="btn btn-ghost btn-sm" id="d-openyt" href="${playlistUrl(
+                [...state.selectedIds]
+                  .map((id) => state.allTracks.find((t) => t.id === id))
+                  .filter((t): t is Track => !!t && hasVerifiedRecordingStream(t))
+                  .map((t) => (t.youtubeVideoId ?? t.videoId)!)
+                  .filter((vid): vid is string => typeof vid === 'string' && vid.length > 0),
+              )}" target="_blank" rel="noopener" title="Queue verified streams on YouTube">
                 ${icon('youtube', 15)} Play on YouTube (${verifiedStreamsCount})
               </a>`
             : ''
@@ -516,7 +521,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     // Create playlist button
     wrap.querySelector('#d-playlist')?.addEventListener('click', () => {
-      const selectedTracks = state.allTracks.filter((t) => state.selectedIds.has(t.videoId));
+      const selectedTracks = state.allTracks.filter((t) => state.selectedIds.has(t.id));
       if (!selectedTracks.length) return;
       const body = document.createElement('div');
       body.innerHTML = `
@@ -530,7 +535,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
           onClick: () => {
             const name = (body.querySelector('#np-name') as HTMLInputElement).value.trim();
             if (!name) return;
-            const p = store.createPlaylist(name, selectedTracks.map((t) => t.videoId));
+            const p = store.createPlaylist(name, selectedTracks.map((t) => t.id));
             toast(`Created playlist “${name}” with ${selectedTracks.length} tracks`, 'success');
             navigate('playlists', { id: p.id });
           },
@@ -553,7 +558,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       renderResults();
     });
     wrap.querySelector('#d-selall')?.addEventListener('click', () => {
-      tracks.forEach((t) => state.selectedIds.add(t.videoId));
+      tracks.forEach((t) => state.selectedIds.add(t.id));
       renderResults();
     });
     wrap.querySelector('#d-selclear')?.addEventListener('click', () => {
@@ -645,7 +650,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         const t = tracks[idx];
         frag.appendChild(
           trackCard(t, {
-            selected: state.selectedIds.has(t.videoId),
+            selected: state.selectedIds.has(t.id),
             showCheckbox: true,
             onToggle: (id) => {
               if (state.selectedIds.has(id)) state.selectedIds.delete(id);

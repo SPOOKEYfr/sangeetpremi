@@ -124,7 +124,11 @@ export function mbArtistToAppArtist(mb: MusicBrainzArtist): Artist {
  * A valid YouTube ID alone is NOT proof of a verified recording relationship.
  */
 export function hasVerifiedRecordingStream(t: Track): boolean {
-  return Array.isArray(t.versionTags) && t.versionTags.includes('verified-stream') && isVerifiedYouTubeId(t.videoId);
+  const vid = t.youtubeVideoId ?? t.videoId;
+  return (
+    (t.youtubeVerified && !!vid && isVerifiedYouTubeId(vid)) ||
+    (Array.isArray(t.versionTags) && t.versionTags.includes('verified-stream') && !!vid && isVerifiedYouTubeId(vid))
+  );
 }
 
 /**
@@ -132,8 +136,8 @@ export function hasVerifiedRecordingStream(t: Track): boolean {
  */
 export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtist: string): Track {
   const isStreamVerified = !!rec.youtubeStream?.verified && !!rec.youtubeStream.videoId;
-  // If no verified YouTube stream exists, use canonical MBID-based identifier
-  const trackId = isStreamVerified ? rec.youtubeStream!.videoId : `mb-${rec.id}`;
+  const vid = isStreamVerified ? rec.youtubeStream!.videoId : undefined;
+  const now = Date.now();
 
   const year = rec.releaseDate ? rec.releaseDate.slice(0, 4) : '';
   const versionTags: string[] = [rec.releaseType];
@@ -141,12 +145,10 @@ export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtis
   if (isStreamVerified) versionTags.push('verified-stream');
 
   return {
-    id: trackId,
-    videoId: trackId,
+    id: rec.id, // Canonical MusicBrainz recording MBID
     title: rec.title,
     normalizedTitle: rec.title.toLowerCase().trim(),
     artist: rec.artistCredit || fallbackArtist,
-    channelId: undefined,
     channelTitle: rec.releaseGroupTitle,
     thumbnail: rec.coverArtUrl,
     durationSeconds: rec.durationSeconds,
@@ -159,7 +161,13 @@ export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtis
     dedupeKey: `mb:${rec.id}`,
     isDuplicate: false,
     canonicalId: undefined,
-    source: 'youtube', // conforms to Track.source type
-    discoveredAt: Date.now(),
+    source: 'musicbrainz',
+    discoveredAt: now,
+    lastUpdated: now,
+    youtubeVideoId: vid,
+    videoId: vid,
+    youtubeUrl: vid ? `https://www.youtube.com/watch?v=${vid}` : undefined,
+    youtubeVerified: isStreamVerified,
+    youtubeSource: isStreamVerified ? 'link-out' : 'none',
   };
 }

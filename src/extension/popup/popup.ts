@@ -40,7 +40,7 @@ async function boot(): Promise<void> {
             ${playlists
               .map(
                 (p) =>
-                  `<button class="chip p-pl" data-id="${p.id}" style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;margin-bottom:5px;padding:8px 12px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${icon('list', 13)} ${escapeHtml(p.name)}</span><span class="badge muted" style="flex:none">${p.trackVideoIds.length}</span></button>`,
+                  `<button class="chip p-pl" data-id="${p.id}" style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;margin-bottom:5px;padding:8px 12px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${icon('list', 13)} ${escapeHtml(p.name)}</span><span class="badge muted" style="flex:none">${p.trackIds?.length ?? p.trackVideoIds?.length ?? 0}</span></button>`,
               )
               .join('')}
           </div>`

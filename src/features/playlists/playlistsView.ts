@@ -5,6 +5,7 @@ import { toast } from '../../components/toast';
 import { openModal } from '../../components/modal';
 import { icon } from '../../components/icons';
 import { escapeHtml, playlistUrl, watchUrl } from '../../utils/sanitize';
+import { formatDuration } from '../../utils/normalize';
 import { loadConfig } from '../../services/config';
 import { YouTubeClient } from '../../services/youtube/api';
 import { authorize, getValidToken } from '../../services/youtube/oauth';
@@ -20,7 +21,7 @@ export function renderPlaylists(el: HTMLElement, params: URLSearchParams): void 
       <h2 style="flex:1">Playlists</h2>
       <button class="btn btn-primary" id="pl-new">${icon('plus', 16)} New playlist</button>
     </div>
-    <div style="display:grid;grid-template-columns:280px 1fr;gap:22px;align-items:start">
+    <div class="playlists-grid">
       <div id="pl-list" style="display:flex;flex-direction:column;gap:10px"></div>
       <div id="pl-detail"></div>
     </div>
@@ -71,22 +72,33 @@ function renderDetail(el: HTMLElement, p: Playlist): void {
   const all = store.allTracks();
   const tracks = p.trackVideoIds.map((id) => all.find((t) => t.videoId === id)).filter((t): t is NonNullable<typeof t> => !!t);
   const missing = p.trackVideoIds.length - tracks.length;
+  const totalSeconds = tracks.reduce((acc, t) => acc + (t.durationSeconds ?? 0), 0);
+  const totalDuration = formatDuration(totalSeconds);
+
+  const verifiedVideoIds = p.trackVideoIds.filter((id) => !id.startsWith('mb-'));
+  const unmappedCount = p.trackVideoIds.length - verifiedVideoIds.length;
 
   el.innerHTML = `
   <section class="clay" style="padding:24px 28px">
-    <input id="pd-name" class="input" style="font-size:18px;font-weight:700;margin-bottom:10px" value="${escapeHtml(p.name)}"/>
-    <textarea id="pd-desc" class="textarea" placeholder="Description…">${escapeHtml(p.description ?? '')}</textarea>
+    <input id="pd-name" class="input" style="font-size:18px;font-weight:700;margin-bottom:10px" value="${escapeHtml(p.name)}" aria-label="Playlist title"/>
+    <textarea id="pd-desc" class="textarea" placeholder="Add an optional description…" aria-label="Playlist description">${escapeHtml(p.description ?? '')}</textarea>
     <div style="display:flex;gap:10px;margin:16px 0;flex-wrap:wrap;align-items:center">
       <span class="badge">${p.trackVideoIds.length} tracks</span>
+      ${totalDuration ? `<span class="badge muted">${totalDuration}</span>` : ''}
       ${p.youtubePlaylistId ? `<span class="badge teal">on YouTube</span>` : ''}
+      ${unmappedCount > 0 ? `<span class="badge muted" title="Tracks without verified YouTube stream mapping">${unmappedCount} unmapped</span>` : ''}
       ${missing ? `<span class="badge warm">${missing} not in library</span>` : ''}
       <span style="flex:1"></span>
-      <button class="btn btn-ghost btn-sm" id="pd-save">${icon('check', 15)} Save</button>
-      <button class="btn btn-ghost btn-sm" id="pd-dup">${icon('plus', 15)} Duplicate</button>
-      <button class="btn btn-ghost btn-sm" id="pd-export">${icon('download', 15)} Export</button>
-      <button class="btn btn-ghost btn-sm" id="pd-del">${icon('trash', 15)} Delete</button>
-      <a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(p.trackVideoIds)}" target="_blank" rel="noopener">${icon('play', 15)} Play on YouTube</a>
-      <button class="btn btn-teal btn-sm" id="pd-yt">${icon('youtube', 15)} Create on YouTube</button>
+      <button class="btn btn-ghost btn-sm" id="pd-save" title="Save changes">${icon('check', 15)} Save</button>
+      <button class="btn btn-ghost btn-sm" id="pd-dup" title="Duplicate playlist">${icon('plus', 15)} Duplicate</button>
+      <button class="btn btn-ghost btn-sm" id="pd-export" title="Export as JSON">${icon('download', 15)} Export</button>
+      <button class="btn btn-ghost btn-sm" id="pd-del" title="Delete playlist" style="color:var(--danger)">${icon('trash', 15)} Delete</button>
+      ${
+        verifiedVideoIds.length > 0
+          ? `<a class="btn btn-ghost btn-sm" id="pd-play" href="${playlistUrl(verifiedVideoIds)}" target="_blank" rel="noopener" title="Launch instant YouTube queue for mapped tracks">${icon('play', 15)} Play on YouTube (${verifiedVideoIds.length})</a>`
+          : `<button class="btn btn-ghost btn-sm" disabled title="No verified YouTube streams mapped for tracks in this playlist" style="opacity:0.6">${icon('play', 15)} No YouTube streams mapped</button>`
+      }
+      <button class="btn btn-teal btn-sm" id="pd-yt" title="Create private YouTube playlist" ${verifiedVideoIds.length === 0 ? 'disabled' : ''}>${icon('youtube', 15)} Create on YouTube</button>
     </div>
     <div id="pd-list" style="display:flex;flex-direction:column;gap:10px"></div>
   </section>`;

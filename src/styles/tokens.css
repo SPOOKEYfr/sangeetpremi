@@ -18,6 +18,8 @@
 
   /* musical accents — restrained, premium */
   --accent: #8b7cf6;          /* soft violet */
+  --accent-violet: #a78bf2;   /* signature lavender/violet */
+  --accent-purple: #bba9f5;   /* coordinated purple */
   --accent-2: #5fd4c4;        /* teal */
   --accent-warm: #e8a87c;     /* warm amber */
   --danger: #e06c75;
@@ -25,6 +27,7 @@
 
   --accent-soft: rgba(139, 124, 246, 0.14);
   --accent-2-soft: rgba(95, 212, 196, 0.12);
+  --focus-ring: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--accent-violet);
 
   /* claymorphism shadows */
   --shadow-raised:

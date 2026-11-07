@@ -56,13 +56,23 @@ export function deduplicate(tracks: Track[], mode: DedupMode = 'balanced'): Dedu
       kept.push(group[0]);
       continue;
     }
-    // Representative: highest view count, then earliest publish.
-    const sorted = [...group].sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0) || (a.publishedAt ?? '').localeCompare(b.publishedAt ?? ''));
+    // Representative: highest view count (when a YouTube link exists), then
+    // earliest publish date, then stable recording MBID. MusicBrainz-only
+    // tracks have no view counts, so the MBID keeps selection deterministic.
+    const sorted = [...group].sort(
+      (a, b) =>
+        (b.viewCount ?? 0) - (a.viewCount ?? 0) ||
+        (a.publishedAt ?? '').localeCompare(b.publishedAt ?? '') ||
+        a.id.localeCompare(b.id),
+    );
     const rep = sorted[0];
     kept.push(rep);
     for (const dup of sorted.slice(1)) {
       dup.isDuplicate = true;
-      dup.canonicalId = rep.videoId;
+      // Canonical identity is the MusicBrainz recording MBID, never a
+      // YouTube video ID (which is optional and may not exist).
+      dup.canonicalId = rep.id;
+      dup.canonicalTrackId = rep.id;
       duplicates.push(dup);
     }
   }

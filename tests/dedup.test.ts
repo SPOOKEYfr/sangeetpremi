@@ -6,6 +6,8 @@ function track(videoId: string, title: string, viewCount = 0): Track {
   return {
     id: videoId, videoId, title, normalizedTitle: title.toLowerCase(), artist: 'Arijit Singh',
     category: 'official', role: 'primary', versionTags: [], dedupeKey: '', isDuplicate: false,
+    youtubeVerified: false,
+    lastUpdated: Date.now(),
     source: 'youtube', discoveredAt: 0, viewCount,
   };
 }

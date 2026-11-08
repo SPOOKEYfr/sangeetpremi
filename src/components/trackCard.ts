@@ -44,9 +44,10 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
 
   // YouTube navigation controls: Honest "Unmapped" state with NO search fallback
   let streamActionHtml: string;
-  if (isStreamVerified && ytVideoId) {
+  if (isStreamVerified && (t.youtubeUrl || ytVideoId)) {
+    const destinationUrl = t.youtubeUrl ?? watchUrl(ytVideoId!);
     streamActionHtml = `
-      <a class="btn btn-ghost btn-sm yt-stream-btn" href="${escapeHtml(t.youtubeUrl ?? watchUrl(ytVideoId))}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
+      <a class="btn btn-ghost btn-sm yt-stream-btn" href="${escapeHtml(destinationUrl)}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
         <span style="color:#ff5555;display:flex;align-items:center">${icon('youtube', 15)}</span>
         <span style="font-size:12px">Watch ↗</span>
       </a>`;
@@ -72,7 +73,9 @@ export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
     </div>
     <div style="display:flex;gap:8px;flex:none;align-items:center">
       ${opts.extra ?? ''}
-      ${streamActionHtml}
+      <div class="track-stream-action" style="display:flex;align-items:center">
+        ${streamActionHtml}
+      </div>
     </div>`;
 }
 

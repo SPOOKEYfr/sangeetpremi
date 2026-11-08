@@ -3,6 +3,7 @@
  * Sourced from MusicBrainz Open Data and Cover Art Archive.
  */
 import type { Artist, DiscoveryCategory, Track } from '../../types';
+import type { MusicBrainzRecordingYouTubeRelationship } from '../../services/musicbrainz/index';
 
 export type ReleaseType = 'Album' | 'Single' | 'EP' | 'Soundtrack' | 'Compilation' | 'Live' | 'Other';
 
@@ -122,12 +123,51 @@ export function mbArtistToAppArtist(mb: MusicBrainzArtist): Artist {
 
 /**
  * Determines whether a track has a verified recording playback relationship.
- * Genuine MusicBrainz URL relationships will be consumed from the backend
- * once OpenCode supplies the agreed API contract.
- * Until genuine verification is available, no recordings have a verified relationship.
+ * Never trusts fixture flags, title similarity, manually supplied video IDs,
+ * or ID shape alone.
+ * Only returns true when the backend returns verificationStatus: 'verified' and
+ * verified: true with a valid returned destination.
+ * The old fixture MBID ('6f5b9d21-f093-4e02-b258-73595561b36e') must NEVER
+ * establish a verified stream.
  */
-export function hasVerifiedRecordingStream(_t: Track): boolean {
-  return false;
+export function hasVerifiedRecordingStream(t: Track): boolean {
+  if (t.id === '6f5b9d21-f093-4e02-b258-73595561b36e') {
+    return false;
+  }
+  return t.youtubeVerified === true && Boolean(t.youtubeVideoId || t.youtubeUrl);
+}
+
+/**
+ * Applies a verified MusicBrainz recording YouTube relationship to a Track.
+ * Only exposes YouTube playback when backend returns verificationStatus: 'verified'
+ * and verified: true with a valid returned destination.
+ * Rejects invalid/old fixture IDs and unverified states.
+ */
+export function applyRecordingRelationshipToTrack(
+  track: Track,
+  relationship: MusicBrainzRecordingYouTubeRelationship | null | undefined,
+): Track {
+  if (
+    relationship &&
+    track.id !== '6f5b9d21-f093-4e02-b258-73595561b36e' &&
+    relationship.recordingMBID !== '6f5b9d21-f093-4e02-b258-73595561b36e' &&
+    relationship.verificationStatus === 'verified' &&
+    relationship.verified === true &&
+    Boolean(relationship.youtubeVideoId || relationship.youtubeUrl)
+  ) {
+    track.youtubeVerified = true;
+    track.youtubeVideoId = relationship.youtubeVideoId ?? undefined;
+    track.youtubeUrl = relationship.youtubeUrl ?? undefined;
+    track.videoId = relationship.youtubeVideoId ?? undefined;
+    track.youtubeSource = 'link-out';
+  } else {
+    track.youtubeVerified = false;
+    track.youtubeVideoId = undefined;
+    track.youtubeUrl = undefined;
+    track.videoId = undefined;
+    track.youtubeSource = 'none';
+  }
+  return track;
 }
 
 /**
@@ -135,7 +175,7 @@ export function hasVerifiedRecordingStream(_t: Track): boolean {
  */
 export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtist: string): Track {
   // Do not trust hardcoded verified: true or infer verification from 11-char IDs.
-  // Genuine MusicBrainz URL relationships will be consumed once OpenCode supplies the contract.
+  // Genuine MusicBrainz URL relationships are resolved dynamically via the backend operation.
   const now = Date.now();
   const year = rec.releaseDate ? rec.releaseDate.slice(0, 4) : '';
   const versionTags: string[] = [rec.releaseType];
@@ -147,6 +187,7 @@ export function canonicalRecordingToTrack(rec: CanonicalRecording, fallbackArtis
     normalizedTitle: rec.title.toLowerCase().trim(),
     artist: rec.artistCredit || fallbackArtist,
     channelTitle: rec.releaseGroupTitle,
+    releaseGroupId: rec.releaseGroupMbid,
     thumbnail: rec.coverArtUrl,
     durationSeconds: rec.durationSeconds,
     publishedAt: rec.releaseDate,

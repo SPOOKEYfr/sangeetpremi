@@ -23,8 +23,11 @@ import {
   canonicalRecordingToTrack,
   mbArtistToAppArtist,
   hasVerifiedRecordingStream,
+  applyRecordingRelationshipToTrack,
 } from './musicbrainzModel';
 import { loadArtistDiscography, searchMusicBrainzArtists } from './musicbrainzClient';
+import { getUiMusicBrainzClient } from '../../services/musicbrainz/bridge';
+import { watchUrl } from '../../utils/sanitize';
 
 interface ViewState {
   artists: MusicBrainzArtist[];
@@ -349,7 +352,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     if (state.selectedReleaseGroupMbid) {
       const rg = state.releaseGroups.find((g) => g.id === state.selectedReleaseGroupMbid);
       if (rg) {
-        list = list.filter((t) => t.channelTitle === rg.title);
+        list = list.filter((t) => t.channelTitle === rg.title || t.releaseGroupId === rg.id);
       }
     }
     if (state.filterReleaseType !== 'all') {
@@ -665,6 +668,38 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     listEl.style.cssText = 'display:flex;flex-direction:column;gap:10px';
     contentEl.appendChild(listEl);
 
+    const relationshipPending = new Set<string>();
+
+    const resolveTrackRelationship = async (track: Track): Promise<void> => {
+      if (track.youtubeVerified || relationshipPending.has(track.id)) return;
+      relationshipPending.add(track.id);
+
+      try {
+        const client = getUiMusicBrainzClient();
+        const rel = await client.getRecordingYouTubeRelationship(track.id);
+        applyRecordingRelationshipToTrack(track, rel);
+
+        if (hasVerifiedRecordingStream(track)) {
+          const cardEl = el.querySelector(`.track-card[data-id="${track.id}"]`);
+          if (cardEl) {
+            const actionContainer = cardEl.querySelector('.track-stream-action');
+            const destUrl = track.youtubeUrl ?? (track.youtubeVideoId ? watchUrl(track.youtubeVideoId) : '');
+            if (actionContainer && destUrl) {
+              actionContainer.innerHTML = `
+                <a class="btn btn-ghost btn-sm yt-stream-btn" href="${escapeHtml(destUrl)}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(track.title)} on YouTube">
+                  <span style="color:#ff5555;display:flex;align-items:center">${icon('youtube', 15)}</span>
+                  <span style="font-size:12px">Watch ↗</span>
+                </a>`;
+            }
+          }
+        }
+      } catch {
+        // If lookup fails or network offline, track remains unmapped
+      } finally {
+        relationshipPending.delete(track.id);
+      }
+    };
+
     // Render tracks in responsive chunks
     const CHUNK = 40;
     let idx = 0;
@@ -683,6 +718,9 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
             },
           }),
         );
+        if (!t.youtubeVerified) {
+          void resolveTrackRelationship(t);
+        }
       }
       listEl.appendChild(frag);
       if (idx < tracks.length) requestAnimationFrame(renderChunk);

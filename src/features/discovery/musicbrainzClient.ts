@@ -157,24 +157,26 @@ export async function loadArtistDiscography(
         coverArtUrl: coverArtArchiveUrl(rg.id),
       }));
 
-      const recordings: CanonicalRecording[] = (liveRecordings || []).map((rec) => {
-        const rg = releaseGroups.find((g) => g.id === rec.releaseGroupId) ?? releaseGroups[0];
-        const artistName = (rec.artist_credit && rec.artist_credit[0]?.artist.name) || liveArtist.name;
-        return {
-          id: rec.id, // Actual MusicBrainz recording MBID
-          title: rec.title,
-          artistCredit: artistName,
-          artistMbid: liveArtist.id,
-          releaseGroupTitle: rec.releaseTitle || rg?.title || '',
-          releaseGroupMbid: rec.releaseGroupId || rg?.id || '',
-          releaseType: rg ? rg.primaryType : 'Album',
-          releaseDate: rec.firstReleaseDate || (rec.firstreleaseyear ? String(rec.firstreleaseyear) : rg?.firstReleaseDate || ''),
-          durationSeconds: rec.length,
-          isrc: rec.isrc,
-          coverArtUrl: rec.coverartthumb || (rg ? coverArtArchiveUrl(rg.id) : undefined),
-          youtubeStream: undefined, // Honest unmapped status — no fake links
-        };
-      });
+      const recordings: CanonicalRecording[] = (liveRecordings || [])
+        .map((rec) => {
+          const rg = rec.releaseGroupId ? releaseGroups.find((g) => g.id === rec.releaseGroupId) : undefined;
+          const artistName = (rec.artist_credit && rec.artist_credit[0]?.artist.name) || liveArtist.name;
+          return {
+            id: rec.id, // Actual MusicBrainz recording MBID
+            title: rec.title,
+            artistCredit: artistName,
+            artistMbid: liveArtist.id,
+            releaseGroupTitle: rec.releaseTitle || rg?.title || '',
+            releaseGroupMbid: rec.releaseGroupId || rg?.id || '',
+            releaseType: rg ? rg.primaryType : 'Album',
+            releaseDate: rec.firstReleaseDate || (rec.firstreleaseyear ? String(rec.firstreleaseyear) : rg?.firstReleaseDate || ''),
+            durationSeconds: rec.length,
+            isrc: rec.isrc,
+            coverArtUrl: rec.coverartthumb || (rg ? coverArtArchiveUrl(rg.id) : undefined),
+            youtubeStream: undefined, // Honest unmapped status — no fake links
+          };
+        })
+        .filter((r) => Boolean(r.releaseGroupMbid)); // Never assign unknown recordings to arbitrary releases
 
       return { artist, releaseGroups, recordings };
     }
@@ -231,25 +233,27 @@ export async function loadArtistDiscography(
       }));
 
       const rawRecs = recData.recordings || [];
-      const recordings: CanonicalRecording[] = rawRecs.map((r: any) => {
-        const release = r.releases?.[0];
-        const rgId = release?.['release-group']?.id;
-        const matchedRg = releaseGroups.find((g) => g.id === rgId) ?? releaseGroups[0];
-        return {
-          id: r.id, // Real recording MBID
-          title: r.title,
-          artistCredit: (r['artist-credit'] && r['artist-credit'][0]?.name) || artist.name,
-          artistMbid: artist.id,
-          releaseGroupTitle: matchedRg ? matchedRg.title : (release?.title || ''),
-          releaseGroupMbid: matchedRg ? matchedRg.id : (rgId || ''),
-          releaseType: matchedRg ? matchedRg.primaryType : 'Album',
-          releaseDate: r['first-release-date'] || (matchedRg ? matchedRg.firstReleaseDate : ''),
-          durationSeconds: r.length ? Math.round(r.length / 1000) : undefined,
-          isrc: r.isrcs?.[0],
-          coverArtUrl: matchedRg ? coverArtArchiveUrl(matchedRg.id) : undefined,
-          youtubeStream: undefined, // Honest unmapped status
-        };
-      });
+      const recordings: CanonicalRecording[] = rawRecs
+        .map((r: any) => {
+          const release = r.releases?.[0];
+          const rgId = release?.['release-group']?.id;
+          const matchedRg = rgId ? releaseGroups.find((g) => g.id === rgId) : undefined;
+          return {
+            id: r.id, // Real recording MBID
+            title: r.title,
+            artistCredit: (r['artist-credit'] && r['artist-credit'][0]?.name) || artist.name,
+            artistMbid: artist.id,
+            releaseGroupTitle: matchedRg ? matchedRg.title : (release?.title || ''),
+            releaseGroupMbid: matchedRg ? matchedRg.id : (rgId || ''),
+            releaseType: matchedRg ? matchedRg.primaryType : 'Album',
+            releaseDate: r['first-release-date'] || (matchedRg ? matchedRg.firstReleaseDate : ''),
+            durationSeconds: r.length ? Math.round(r.length / 1000) : undefined,
+            isrc: r.isrcs?.[0],
+            coverArtUrl: matchedRg ? coverArtArchiveUrl(matchedRg.id) : undefined,
+            youtubeStream: undefined, // Honest unmapped status
+          };
+        })
+        .filter((r: CanonicalRecording) => Boolean(r.releaseGroupMbid)); // Never assign unknown recordings to arbitrary releases
 
       return { artist, releaseGroups, recordings };
     }
@@ -270,4 +274,58 @@ export async function loadArtistDiscography(
   }
 
   throw new Error(`Unable to load live MusicBrainz discography for MBID ${artistMbid}. Check network connection.`);
+}
+
+/**
+ * Retrieves recordings specifically for one release group using
+ * MusicBrainzClient.getRecordingsByReleaseGroupMBID.
+ * Guarantees that tracks belong to the requested release group and never
+ * assigns recordings to an arbitrary release by fallback.
+ */
+export async function loadReleaseGroupRecordings(
+  releaseGroupMbid: string,
+  releaseGroupTitle?: string,
+  releaseType: ReleaseType = 'Album',
+  fallbackArtistName?: string,
+): Promise<CanonicalRecording[]> {
+  const normRgId = releaseGroupMbid.trim();
+  if (!normRgId) return [];
+
+  try {
+    const client = getUiMusicBrainzClient();
+    const liveRecordings = await client.getRecordingsByReleaseGroupMBID(normRgId);
+    if (Array.isArray(liveRecordings) && liveRecordings.length > 0) {
+      return liveRecordings.map((rec) => {
+        const artistName =
+          (rec.artist_credit && rec.artist_credit[0]?.artist.name) || fallbackArtistName || '';
+        const artistId = rec.artist_credit?.[0]?.artist.id || '';
+        return {
+          id: rec.id, // Canonical MusicBrainz recording MBID
+          title: rec.title,
+          artistCredit: artistName,
+          artistMbid: artistId,
+          releaseGroupTitle: rec.releaseTitle || releaseGroupTitle || '',
+          releaseGroupMbid: normRgId,
+          releaseType,
+          releaseDate: rec.firstReleaseDate || (rec.firstreleaseyear ? String(rec.firstreleaseyear) : ''),
+          durationSeconds: rec.length,
+          isrc: rec.isrc,
+          coverArtUrl: rec.coverartthumb || coverArtArchiveUrl(normRgId),
+          youtubeStream: undefined,
+        };
+      });
+    }
+  } catch {
+    // Network/bridge failed
+  }
+
+  // Fallback to offline catalog if available for tests / offline sandbox
+  for (const entry of Object.values(CANONICAL_ARTISTS)) {
+    const matching = entry.recordings.filter((r) => r.releaseGroupMbid === normRgId);
+    if (matching.length > 0) {
+      return matching;
+    }
+  }
+
+  return [];
 }

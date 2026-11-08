@@ -107,21 +107,6 @@ export const CANONICAL_ARTISTS: Record<string, ArtistCatalogEntry> = {
     recordings: [
       // Parachutes (1dc4c347-a1db-32aa-b14f-bc9cc507b843) canonical tracklist
       {
-        id: 'bd128a1c-ec81-428a-82cf-f9261a8ef181',
-        title: "Don't Panic",
-        artistCredit: 'Coldplay',
-        artistMbid: 'cc197bad-dc9c-440d-a5b5-d52ba2e14234',
-        releaseGroupTitle: 'Parachutes',
-        releaseGroupMbid: '1dc4c347-a1db-32aa-b14f-bc9cc507b843',
-        releaseType: 'Album',
-        releaseDate: '2000-07-10',
-        trackNumber: 1,
-        durationSeconds: 137,
-        isrc: 'GBAYE0000511',
-        coverArtUrl: coverArtArchiveUrl('1dc4c347-a1db-32aa-b14f-bc9cc507b843'),
-        youtubeStream: undefined, // Unmapped stream
-      },
-      {
         id: '144a9ec0-e298-47fb-a793-79277f0cff57',
         title: 'Shiver',
         artistCredit: 'Coldplay',

@@ -25,7 +25,11 @@ import {
   hasVerifiedRecordingStream,
   applyRecordingRelationshipToTrack,
 } from './musicbrainzModel';
-import { loadArtistDiscography, searchMusicBrainzArtists } from './musicbrainzClient';
+import {
+  loadArtistDiscography,
+  loadReleaseGroupRecordings,
+  searchMusicBrainzArtists,
+} from './musicbrainzClient';
 import { getUiMusicBrainzClient } from '../../services/musicbrainz/bridge';
 import { watchUrl } from '../../utils/sanitize';
 
@@ -35,6 +39,7 @@ interface ViewState {
   releaseGroups: MusicBrainzReleaseGroup[];
   recordings: CanonicalRecording[];
   allTracks: Track[];
+  releaseGroupTracks: Map<string, Track[]>;
   selectedIds: Set<string>;
   query: string;
   selectedReleaseGroupMbid?: string;
@@ -54,6 +59,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     releaseGroups: [],
     recordings: [],
     allTracks: [],
+    releaseGroupTracks: new Map(),
     selectedIds: new Set(),
     query: initialQuery,
     selectedReleaseGroupMbid: undefined,
@@ -145,6 +151,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
     state.releaseGroups = [];
     state.recordings = [];
     state.allTracks = [];
+    state.releaseGroupTracks.clear();
     state.selectedIds.clear();
     state.selectedReleaseGroupMbid = undefined;
     store.pushHistory(query);
@@ -202,6 +209,16 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       const entry = await loadArtistDiscography(mbArtist.id);
       state.releaseGroups = entry.releaseGroups;
       state.recordings = entry.recordings;
+
+      state.releaseGroupTracks.clear();
+      // Pre-seed releaseGroupTracks for any recordings with a verified releaseGroupMbid
+      for (const rec of entry.recordings) {
+        if (!rec.releaseGroupMbid) continue;
+        const track = canonicalRecordingToTrack(rec, mbArtist.name);
+        const existing = state.releaseGroupTracks.get(rec.releaseGroupMbid) || [];
+        existing.push(track);
+        state.releaseGroupTracks.set(rec.releaseGroupMbid, existing);
+      }
 
       // Convert canonical recordings to application tracks for local storage and playlists
       state.allTracks = entry.recordings.map((rec) => canonicalRecordingToTrack(rec, mbArtist.name));
@@ -348,12 +365,16 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
   }
 
   function visibleTracks(): Track[] {
-    let list = state.allTracks;
+    let list: Track[];
     if (state.selectedReleaseGroupMbid) {
-      const rg = state.releaseGroups.find((g) => g.id === state.selectedReleaseGroupMbid);
-      if (rg) {
-        list = list.filter((t) => t.channelTitle === rg.title || t.releaseGroupId === rg.id);
+      const releaseTracks = state.releaseGroupTracks.get(state.selectedReleaseGroupMbid);
+      if (releaseTracks) {
+        list = releaseTracks;
+      } else {
+        list = state.allTracks.filter((t) => t.releaseGroupId === state.selectedReleaseGroupMbid);
       }
+    } else {
+      list = state.allTracks;
     }
     if (state.filterReleaseType !== 'all') {
       list = list.filter((t) => (t.versionTags || []).includes(state.filterReleaseType));
@@ -369,6 +390,57 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       if (state.sortOrder === 'duration') return (b.durationSeconds ?? 0) - (a.durationSeconds ?? 0);
       return 0;
     });
+  }
+
+  async function selectReleaseGroup(rgId: string): Promise<void> {
+    if (state.selectedReleaseGroupMbid === rgId) {
+      state.selectedReleaseGroupMbid = undefined;
+      state.viewMode = 'discography';
+      renderResults();
+      return;
+    }
+
+    state.selectedReleaseGroupMbid = rgId;
+    state.viewMode = 'tracks';
+
+    const rg = state.releaseGroups.find((g) => g.id === rgId);
+    const rgTitle = rg?.title ?? 'Release';
+
+    if (!state.releaseGroupTracks.has(rgId)) {
+      const contentEl = el.querySelector('#d-content');
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div class="clay clay-sm" style="padding:28px;text-align:center">
+            <div class="progress-bar" style="width:60%;margin:0 auto 12px"></div>
+            <p style="margin:0;font-size:13px;color:var(--text-2)">Loading recordings for <strong>${escapeHtml(rgTitle)}</strong> via MusicBrainz…</p>
+          </div>`;
+      }
+
+      try {
+        const recs = await loadReleaseGroupRecordings(
+          rgId,
+          rg?.title,
+          rg?.primaryType,
+          state.selectedArtist?.name,
+        );
+        const tracks: Track[] = recs.map((r) =>
+          canonicalRecordingToTrack(r, state.selectedArtist?.name || ''),
+        );
+        state.releaseGroupTracks.set(rgId, tracks);
+
+        // Aggregate into allTracks if not already present
+        for (const t of tracks) {
+          if (!state.allTracks.some((existing) => existing.id === t.id && existing.releaseGroupId === t.releaseGroupId)) {
+            state.allTracks.push(t);
+          }
+        }
+      } catch (err) {
+        state.releaseGroupTracks.set(rgId, []);
+        toast(`Failed to load recordings for ${rgTitle}: ${(err as Error).message}`, 'error');
+      }
+    }
+
+    renderResults();
   }
 
   function renderResults(): void {
@@ -645,9 +717,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
       contentEl.querySelectorAll('.release-group-card').forEach((card) => {
         card.addEventListener('click', () => {
           const rgId = (card as HTMLElement).dataset.rg;
-          state.selectedReleaseGroupMbid = state.selectedReleaseGroupMbid === rgId ? undefined : rgId;
-          state.viewMode = 'tracks';
-          renderResults();
+          if (rgId) void selectReleaseGroup(rgId);
         });
       });
       return;

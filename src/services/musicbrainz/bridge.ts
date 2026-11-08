@@ -160,6 +160,9 @@ export function createMusicBrainzBridge(
     getArtistCreditsForReleaseGroup(releaseGroupMBID) {
       return request('getArtistCreditsForReleaseGroup', { releaseGroupMBID });
     },
+    getRecordingYouTubeRelationship(recordingMBID) {
+      return request('getRecordingYouTubeRelationship', { recordingMBID });
+    },
   };
 }
 

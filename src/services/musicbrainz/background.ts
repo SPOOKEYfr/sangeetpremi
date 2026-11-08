@@ -142,6 +142,10 @@ async function dispatch(
       return client.getArtistCreditsForReleaseGroup(
         readString(params, 'releaseGroupMBID'),
       );
+    case 'getRecordingYouTubeRelationship':
+      return client.getRecordingYouTubeRelationship(
+        readString(params, 'recordingMBID'),
+      );
     default: {
       const exhaustive: never = request;
       throw new Error(`Unsupported MusicBrainz operation: ${JSON.stringify(exhaustive)}`);

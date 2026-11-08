@@ -41,6 +41,7 @@ const RELEASE_GROUP_BROWSE_INC = 'artist-credits';
 const RECORDING_BROWSE_INC = 'artist-credits+isrcs';
 const RELEASE_BROWSE_INC = 'recordings+artist-credits';
 const RECORDING_LOOKUP_INC = 'releases+release-groups';
+const RECORDING_RELATIONSHIP_LOOKUP_INC = 'url-rels+artist-credits+isrcs';
 const RELEASE_GROUP_LOOKUP_INC = 'artist-credits';
 
 /** Cover Art Archive image URLs for one release group. */
@@ -56,6 +57,42 @@ export interface CoverArt {
  */
 export interface MusicBrainzRecordingResult extends MusicBrainzRecording {
   firstreleaseyear?: number;
+}
+
+/**
+ * Explicit provenance for a recording-to-YouTube decision.
+ *
+ * `verified` is true only when MusicBrainz itself attaches a qualifying
+ * YouTube/YouTube Music URL relationship to the exact recording MBID that was
+ * looked up. A caller-supplied boolean, a title match, or an arbitrary
+ * valid-looking video ID can never produce a verified result.
+ */
+export type MusicBrainzYouTubeVerificationStatus =
+  | 'verified'
+  | 'unmapped'
+  | 'invalid-mbid'
+  | 'recording-not-found';
+
+export interface MusicBrainzRecordingYouTubeRelationship {
+  /** Canonical MusicBrainz recording MBID used for the lookup. */
+  recordingMBID: string;
+  /** Validated recording metadata, when the recording was found. */
+  recordingTitle?: string;
+  artistCredit?: string[];
+  lengthSeconds?: number;
+  isrc?: string;
+  /** Exact URL attached by the MusicBrainz relationship, or null. */
+  relationshipUrl: string | null;
+  /** Exact MusicBrainz relationship type, or null. */
+  relationshipType: string | null;
+  relationshipDirection: 'forward' | 'backward' | null;
+  /** This decision is always sourced from MusicBrainz. */
+  source: 'musicbrainz';
+  verificationStatus: MusicBrainzYouTubeVerificationStatus;
+  verified: boolean;
+  youtubeVideoId: string | null;
+  /** Canonical YouTube watch URL derived from the relationship URL. */
+  youtubeUrl: string | null;
 }
 
 /** Dependencies that can be replaced by tests. */
@@ -97,6 +134,9 @@ export interface MusicBrainzClient {
   getCoverArtArchive(recordingMBID: string): Promise<CoverArt>;
   getCoverArtArchiveByReleaseGroupMBID(releaseGroupMBID: string): Promise<CoverArt>;
   getArtistCreditsForReleaseGroup(releaseGroupMBID: string): Promise<MusicBrainzArtistCredit[]>;
+  getRecordingYouTubeRelationship(
+    recordingMBID: string,
+  ): Promise<MusicBrainzRecordingYouTubeRelationship>;
 }
 
 /** Error raised for non-2xx responses and unreadable/malformed response bodies. */
@@ -507,6 +547,199 @@ function isValidMBID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+interface RecordingUrlRelation {
+  type: string;
+  direction: 'forward' | 'backward' | undefined;
+  url: string;
+}
+
+interface ParsedYouTubeRelationshipUrl {
+  videoId: string;
+  canonicalUrl: string;
+  hostRank: number;
+}
+
+interface YouTubeRelationshipMatch {
+  relation: RecordingUrlRelation;
+  parsed: ParsedYouTubeRelationshipUrl;
+  typeRank: number;
+}
+
+const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * Only streaming relationships may supply playback. A YouTube-hosted URL
+ * attached under an unrelated relationship type (for example "official
+ * homepage") is not a recording playback relationship.
+ */
+const PLAYBACK_RELATIONSHIP_TYPE_RANKS = new Map<string, number>([
+  ['free streaming', 0],
+  ['streaming', 1],
+]);
+
+/** Prefer the canonical YouTube watch host, then mirror/short hosts. */
+const YOUTUBE_HOST_RANKS = new Map<string, number>([
+  ['youtube.com', 0],
+  ['www.youtube.com', 0],
+  ['m.youtube.com', 1],
+  ['music.youtube.com', 2],
+  ['youtu.be', 3],
+]);
+
+/**
+ * Read the `relations` array from a recording lookup. Missing `relations`
+ * means the recording has none; a present non-array is malformed and must not
+ * be mistaken for an absence of a relationship.
+ */
+function readRecordingUrlRelations(payload: UnknownRecord): RecordingUrlRelation[] {
+  const value = payload.relations;
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new MusicBrainzError('MusicBrainz returned malformed recording relationships');
+  }
+
+  const relations: RecordingUrlRelation[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      throw new MusicBrainzError('MusicBrainz returned a malformed recording relationship');
+    }
+
+    const type = readString(entry, 'type');
+    const urlRecord = readRecord(entry, 'url');
+    const resource = urlRecord ? readString(urlRecord, 'resource') : undefined;
+    if (!type || !resource) {
+      throw new MusicBrainzError('MusicBrainz returned a malformed recording relationship');
+    }
+
+    const direction =
+      entry.direction === 'forward' || entry.direction === 'backward'
+        ? entry.direction
+        : undefined;
+    relations.push({ type, direction, url: resource });
+  }
+  return relations;
+}
+
+/**
+ * Extract a YouTube video ID only from an exact MusicBrainz relationship URL.
+ * A lone 11-character string, a video title, or a search result can never enter
+ * this function as a verification source.
+ */
+function parseYouTubeRelationshipUrl(
+  resource: string,
+): ParsedYouTubeRelationshipUrl | null {
+  let url: URL;
+  try {
+    url = new URL(resource);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  if (url.username || url.password || url.port) return null;
+
+  const host = url.hostname.toLowerCase();
+  const hostRank = YOUTUBE_HOST_RANKS.get(host);
+  if (hostRank === undefined) return null;
+
+  let videoId: string | undefined;
+  if (host === 'youtu.be') {
+    const segments = url.pathname.split('/').filter(Boolean);
+    if (segments.length !== 1) return null;
+    videoId = segments[0];
+  } else {
+    if (url.pathname !== '/watch' && url.pathname !== '/watch/') return null;
+    const values = url.searchParams.getAll('v');
+    if (values.length !== 1) return null;
+    videoId = values[0];
+  }
+
+  if (!videoId || !YOUTUBE_VIDEO_ID_RE.test(videoId)) return null;
+
+  return {
+    videoId,
+    canonicalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    hostRank,
+  };
+}
+
+function findYouTubeRelationship(
+  relations: RecordingUrlRelation[],
+): YouTubeRelationshipMatch | null {
+  const candidates: Array<YouTubeRelationshipMatch & { index: number }> = [];
+
+  relations.forEach((relation, index) => {
+    const typeRank = PLAYBACK_RELATIONSHIP_TYPE_RANKS.get(
+      relation.type.trim().toLowerCase(),
+    );
+    if (typeRank === undefined) return;
+
+    const parsed = parseYouTubeRelationshipUrl(relation.url);
+    if (!parsed) return;
+
+    candidates.push({ relation, parsed, typeRank, index });
+  });
+
+  candidates.sort(
+    (a, b) =>
+      a.typeRank - b.typeRank ||
+      a.parsed.hostRank - b.parsed.hostRank ||
+      a.index - b.index,
+  );
+
+  const best = candidates[0];
+  if (!best) return null;
+  return { relation: best.relation, parsed: best.parsed, typeRank: best.typeRank };
+}
+
+function unmappedRecordingYouTubeRelationship(
+  recordingMBID: string,
+  verificationStatus: Exclude<MusicBrainzYouTubeVerificationStatus, 'verified'>,
+  recording?: MusicBrainzRecordingResult,
+): MusicBrainzRecordingYouTubeRelationship {
+  return {
+    recordingMBID,
+    ...(recording
+      ? {
+          recordingTitle: recording.title,
+          artistCredit: recording.artist_credit.map((credit) => credit.artist.name),
+          lengthSeconds: recording.length,
+          isrc: recording.isrc,
+        }
+      : {}),
+    relationshipUrl: null,
+    relationshipType: null,
+    relationshipDirection: null,
+    source: 'musicbrainz',
+    verificationStatus,
+    verified: false,
+    youtubeVideoId: null,
+    youtubeUrl: null,
+  };
+}
+
+function verifiedRecordingYouTubeRelationship(
+  recording: MusicBrainzRecordingResult,
+  relation: RecordingUrlRelation,
+  parsed: ParsedYouTubeRelationshipUrl,
+): MusicBrainzRecordingYouTubeRelationship {
+  return {
+    recordingMBID: recording.id,
+    recordingTitle: recording.title,
+    artistCredit: recording.artist_credit.map((credit) => credit.artist.name),
+    lengthSeconds: recording.length,
+    isrc: recording.isrc,
+    relationshipUrl: relation.url,
+    relationshipType: relation.type,
+    relationshipDirection: relation.direction ?? null,
+    source: 'musicbrainz',
+    verificationStatus: 'verified',
+    verified: true,
+    youtubeVideoId: parsed.videoId,
+    youtubeUrl: parsed.canonicalUrl,
+  };
+}
+
 /**
  * Create an isolated MusicBrainz client. Each instance owns its queue and
  * rate-limit clock, so tests never share scheduler state.
@@ -704,6 +937,42 @@ export function createMusicBrainzClient(
       }
     },
 
+    async getRecordingYouTubeRelationship(recordingMBID) {
+      const requested = typeof recordingMBID === 'string' ? recordingMBID.trim() : '';
+      if (!isValidMBID(requested)) {
+        return unmappedRecordingYouTubeRelationship(requested, 'invalid-mbid');
+      }
+
+      let payload: unknown;
+      try {
+        payload = await requestJson(`/recording/${requested}`, {
+          inc: RECORDING_RELATIONSHIP_LOOKUP_INC,
+        });
+      } catch (error) {
+        if (error instanceof MusicBrainzError && error.status === 404) {
+          return unmappedRecordingYouTubeRelationship(requested, 'recording-not-found');
+        }
+        throw error;
+      }
+
+      if (!isRecord(payload)) {
+        throw new MusicBrainzError('MusicBrainz returned an invalid recording lookup response');
+      }
+
+      const recording = mapRecording(payload);
+      if (!recording || recording.id.toLowerCase() !== requested.toLowerCase()) {
+        throw new MusicBrainzError('MusicBrainz returned an invalid recording lookup response');
+      }
+
+      const relations = readRecordingUrlRelations(payload);
+      const match = findYouTubeRelationship(relations);
+      if (!match) {
+        return unmappedRecordingYouTubeRelationship(recording.id, 'unmapped', recording);
+      }
+
+      return verifiedRecordingYouTubeRelationship(recording, match.relation, match.parsed);
+    },
+
     getCoverArtArchiveByReleaseGroupMBID,
 
     async getArtistCreditsForReleaseGroup(releaseGroupMBID) {
@@ -783,4 +1052,10 @@ export function getArtistCreditsForReleaseGroup(
   releaseGroupMBID: string,
 ): Promise<MusicBrainzArtistCredit[]> {
   return getSharedMusicBrainzClient().getArtistCreditsForReleaseGroup(releaseGroupMBID);
+}
+
+export function getRecordingYouTubeRelationship(
+  recordingMBID: string,
+): Promise<MusicBrainzRecordingYouTubeRelationship> {
+  return getSharedMusicBrainzClient().getRecordingYouTubeRelationship(recordingMBID);
 }

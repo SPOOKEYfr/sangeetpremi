@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createMusicBrainzClient } from '../src/services/musicbrainz/index';
+import {
+  YELLOW_RECORDING_MBID,
+  YELLOW_VIDEO_ID,
+  YELLOW_VIDEO_URL,
+} from './musicbrainzHarness';
 
 const live =
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
@@ -48,6 +53,34 @@ describe('MusicBrainz live contract', () => {
       expect(new URL(artwork.front ?? artwork.thumb ?? '').hostname).toBe(
         'coverartarchive.org',
       );
+    },
+    120_000,
+  );
+
+  it.runIf(live)(
+    'verifies the real Yellow recording from its MusicBrainz URL relationship',
+    async () => {
+      const client = createMusicBrainzClient({
+        userAgent: 'SangeetPremi/1.0 (live-contract-test; +https://sangeetpremi.org)',
+      });
+
+      const result = await client.getRecordingYouTubeRelationship(
+        YELLOW_RECORDING_MBID,
+      );
+
+      expect(result.verificationStatus).toBe('verified');
+      expect(result.verified).toBe(true);
+      expect(result.source).toBe('musicbrainz');
+      expect(result.recordingMBID).toBe(YELLOW_RECORDING_MBID);
+      expect(result.recordingTitle).toBe('Yellow');
+      expect(result.artistCredit).toContain('Coldplay');
+      expect(result.relationshipType).toBe('free streaming');
+      expect(result.relationshipDirection).toBe('forward');
+      expect(result.relationshipUrl).toMatch(
+        /^https:\/\/(?:www|music)\.youtube\.com\/watch\?v=9qnqYL0eNNI$/,
+      );
+      expect(result.youtubeVideoId).toBe(YELLOW_VIDEO_ID);
+      expect(result.youtubeUrl).toBe(YELLOW_VIDEO_URL);
     },
     120_000,
   );

@@ -17,6 +17,9 @@ import {
 } from '../src/services/musicbrainz/protocol';
 import {
   QUEEN_MBID,
+  YELLOW_RECORDING_MBID,
+  YELLOW_VIDEO_ID,
+  YELLOW_VIDEO_URL,
   catalogueHandler,
   createClientHarness,
 } from './musicbrainzHarness';
@@ -122,6 +125,37 @@ describe('MusicBrainz background routing', () => {
     ]);
     // The background client's single queue enforces the shared interval.
     expect(harness.requests.map((request) => request.at)).toEqual([0, 1000]);
+  });
+
+  it('routes recording relationship verification through the shared client', async () => {
+    const harness = createClientHarness(catalogueHandler);
+    const runtime = createTestRuntime();
+    unregister = registerMusicBrainzBackgroundHandler({
+      runtime,
+      client: harness.client,
+    });
+    const bridge = bridgeFor(runtime);
+
+    const result = await bridge.getRecordingYouTubeRelationship(
+      YELLOW_RECORDING_MBID,
+    );
+
+    expect(result).toMatchObject({
+      recordingMBID: YELLOW_RECORDING_MBID,
+      recordingTitle: 'Yellow',
+      verificationStatus: 'verified',
+      verified: true,
+      source: 'musicbrainz',
+      youtubeVideoId: YELLOW_VIDEO_ID,
+      youtubeUrl: YELLOW_VIDEO_URL,
+    });
+    expect(harness.requests).toHaveLength(1);
+    expect(harness.requests[0].url.pathname).toBe(
+      `/ws/2/recording/${YELLOW_RECORDING_MBID}`,
+    );
+    expect(harness.requests[0].url.searchParams.get('inc')).toBe(
+      'url-rels+artist-credits+isrcs',
+    );
   });
 
   it('keeps the message channel open until the async response arrives', async () => {

@@ -19,6 +19,13 @@ export const BOHEMIAN_TRACK_MBID = '878980e9-70e5-48d2-92e2-cee144d6e844';
 export const WWRY_RECORDING_MBID = '1d0a7e56-03e2-4cb4-b8ad-4d2c7e7c7c7e';
 export const EMPTY_MBID = '00000000-0000-0000-0000-000000000000';
 
+// Real live MusicBrainz identifiers for Coldplay's "Yellow" recording.
+export const COLDPLAY_MBID = 'cc197bad-dc9c-440d-a5b5-d52ba2e14234';
+export const YELLOW_RECORDING_MBID = '729cf505-94eb-4fbe-bc76-cbae44cff091';
+export const YELLOW_VIDEO_ID = '9qnqYL0eNNI';
+export const YELLOW_VIDEO_URL = `https://www.youtube.com/watch?v=${YELLOW_VIDEO_ID}`;
+export const YELLOW_MUSIC_VIDEO_URL = `https://music.youtube.com/watch?v=${YELLOW_VIDEO_ID}`;
+
 export const FRONT_URL =
   'https://coverartarchive.org/release/90d2e40a-eee0-4290-aa0a-a5ae3683ea2f/2812830852.jpg';
 export const BACK_URL =
@@ -213,6 +220,68 @@ export const RECORDING_WITHOUT_RELEASE_RESPONSE = {
   title: 'Unreleased recording',
 };
 
+const COLDPLAY_CREDIT = [
+  {
+    name: 'Coldplay',
+    joinphrase: '',
+    artist: {
+      id: COLDPLAY_MBID,
+      name: 'Coldplay',
+      'sort-name': 'Coldplay',
+      type: 'Group',
+      country: 'GB',
+      disambiguation: '',
+    },
+  },
+];
+
+/**
+ * Trimmed live-shaped response for Coldplay's "Yellow" recording with URL
+ * relationships. The real response was verified against MusicBrainz in
+ * November 2026; non-YouTube streaming links are retained so tests prove the
+ * parser ignores unrelated destinations.
+ */
+export const YELLOW_RELATIONSHIPS_RESPONSE = {
+  id: YELLOW_RECORDING_MBID,
+  title: 'Yellow',
+  length: 269_120,
+  'first-release-date': '2000-06-26',
+  isrcs: ['GBAYE0000267', 'GBAYE1600170', 'USLIC0600482', 'USNO11400531'],
+  'artist-credit': COLDPLAY_CREDIT,
+  relations: [
+    {
+      type: 'free streaming',
+      direction: 'forward',
+      url: { resource: YELLOW_MUSIC_VIDEO_URL },
+    },
+    {
+      type: 'free streaming',
+      direction: 'forward',
+      url: { resource: 'https://open.spotify.com/track/3AJwUDP919kvQ9QcozQPxg' },
+    },
+    {
+      type: 'free streaming',
+      direction: 'forward',
+      url: { resource: 'https://www.deezer.com/track/3128096' },
+    },
+    {
+      type: 'free streaming',
+      direction: 'forward',
+      url: { resource: YELLOW_VIDEO_URL },
+    },
+    {
+      type: 'purchase for download',
+      direction: 'forward',
+      url: { resource: 'https://music.apple.com/gb/song/1122782283' },
+    },
+    {
+      type: 'streaming',
+      direction: 'forward',
+      url: { resource: 'https://tidal.com/track/68646785' },
+    },
+  ],
+};
+
 export const COVER_ART_RESPONSE = {
   images: [
     {
@@ -373,6 +442,9 @@ export function catalogueHandler(url: URL): Response {
   }
   if (path === `/ws/2/recording/${EMPTY_MBID}`) {
     return jsonResponse(RECORDING_WITHOUT_RELEASE_RESPONSE);
+  }
+  if (path === `/ws/2/recording/${YELLOW_RECORDING_MBID}`) {
+    return jsonResponse(YELLOW_RELATIONSHIPS_RESPONSE);
   }
 
   if (path === '/ws/2/release') {

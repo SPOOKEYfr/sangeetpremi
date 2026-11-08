@@ -6,7 +6,7 @@
  */
 import { store } from '../../state/store';
 import { navigate } from '../../app/router';
-import type { Artist, DiscoverySession, Track } from '../../types';
+import type { Artist, DiscoveryCategory, DiscoverySession, Track } from '../../types';
 import { icon } from '../../components/icons';
 import { trackCard, trackSkeleton } from '../../components/trackCard';
 import { toast } from '../../components/toast';
@@ -48,6 +48,187 @@ interface ViewState {
   sortOrder: 'newest' | 'oldest' | 'title' | 'duration';
   viewMode: 'discography' | 'tracks';
   running: boolean;
+}
+
+export interface ReleaseAppearance {
+  releaseGroupId: string;
+  releaseGroupTitle: string;
+  category?: DiscoveryCategory;
+  publishedAt?: string;
+  durationSeconds?: number;
+  thumbnail?: string;
+  versionTags: string[];
+}
+
+export type DiscoveryAction =
+  | { type: 'select_release_group'; releaseGroupId: string }
+  | { type: 'select_all_tracks' }
+  | { type: 'select_discography' }
+  | { type: 'clear_release_focus' };
+
+/**
+ * Handles user navigation and focus actions between discography, individual releases, and All Tracks.
+ */
+export function handleDiscoveryAction(
+  state: {
+    selectedReleaseGroupMbid?: string;
+    viewMode: 'discography' | 'tracks';
+  },
+  action: DiscoveryAction,
+): void {
+  switch (action.type) {
+    case 'select_release_group':
+      state.selectedReleaseGroupMbid = action.releaseGroupId;
+      state.viewMode = 'tracks';
+      break;
+    case 'select_all_tracks':
+      state.selectedReleaseGroupMbid = undefined;
+      state.viewMode = 'tracks';
+      break;
+    case 'clear_release_focus':
+      state.selectedReleaseGroupMbid = undefined;
+      state.viewMode = 'tracks';
+      break;
+    case 'select_discography':
+      state.selectedReleaseGroupMbid = undefined;
+      state.viewMode = 'discography';
+      break;
+  }
+}
+
+/**
+ * Aggregates release-group recordings into the artist's full track collection.
+ * - Deduplicates by canonical recording MBID (one aggregate row per MBID).
+ * - Preserves all known release-group associations and titles as provenance in track.metadata.
+ * - Merges version tags without dropping legitimate associations.
+ */
+export function aggregateReleaseTracks(existing: Track[], incoming: Track[]): Track[] {
+  const result = [...existing];
+  for (const track of incoming) {
+    const existingIndex = result.findIndex((t) => t.id === track.id);
+    if (existingIndex >= 0) {
+      const prev = result[existingIndex];
+      const prevReleases: ReleaseAppearance[] =
+        Array.isArray(prev.metadata?.releases)
+          ? [...prev.metadata.releases]
+          : prev.releaseGroupId
+            ? [
+                {
+                  releaseGroupId: prev.releaseGroupId,
+                  releaseGroupTitle: prev.channelTitle || '',
+                  category: prev.category,
+                  publishedAt: prev.publishedAt,
+                  durationSeconds: prev.durationSeconds,
+                  thumbnail: prev.thumbnail,
+                  versionTags: prev.versionTags || [],
+                },
+              ]
+            : [];
+
+      if (track.releaseGroupId && !prevReleases.some((r) => r.releaseGroupId === track.releaseGroupId)) {
+        prevReleases.push({
+          releaseGroupId: track.releaseGroupId,
+          releaseGroupTitle: track.channelTitle || '',
+          category: track.category,
+          publishedAt: track.publishedAt,
+          durationSeconds: track.durationSeconds,
+          thumbnail: track.thumbnail,
+          versionTags: track.versionTags || [],
+        });
+      }
+
+      const releaseGroupIds = [
+        ...new Set([
+          ...(Array.isArray(prev.metadata?.releaseGroupIds)
+            ? prev.metadata.releaseGroupIds
+            : [prev.releaseGroupId].filter(Boolean)),
+          track.releaseGroupId,
+        ].filter(Boolean)),
+      ];
+
+      const mergedTags = [...new Set([...(prev.versionTags || []), ...(track.versionTags || [])])];
+
+      // In aggregate presentation, composite all associated release titles rather than misleadingly
+      // showing only the first-discovered release title as universal
+      const compositeChannelTitle = prevReleases
+        .map((r) => r.releaseGroupTitle)
+        .filter(Boolean)
+        .join(', ');
+
+      result[existingIndex] = {
+        ...prev,
+        channelTitle: compositeChannelTitle || prev.channelTitle,
+        versionTags: mergedTags,
+        metadata: {
+          ...prev.metadata,
+          releases: prevReleases,
+          releaseGroupIds,
+        },
+      };
+    } else {
+      const releaseGroupIds = track.releaseGroupId ? [track.releaseGroupId] : [];
+      const releases: ReleaseAppearance[] = track.releaseGroupId
+        ? [
+            {
+              releaseGroupId: track.releaseGroupId,
+              releaseGroupTitle: track.channelTitle || '',
+              category: track.category,
+              publishedAt: track.publishedAt,
+              durationSeconds: track.durationSeconds,
+              thumbnail: track.thumbnail,
+              versionTags: track.versionTags || [],
+            },
+          ]
+        : [];
+      result.push({
+        ...track,
+        metadata: {
+          ...track.metadata,
+          releases,
+          releaseGroupIds,
+        },
+      });
+    }
+  }
+  return result;
+}
+
+/**
+ * Filters and sorts visible tracks based on active release focus, release-type filter, search text, and sort order.
+ */
+export function filterVisibleTracks(
+  allTracks: Track[],
+  releaseGroupTracks: Map<string, Track[]>,
+  selectedReleaseGroupMbid: string | undefined,
+  filterReleaseType: ReleaseType | 'all' = 'all',
+  filterText: string = '',
+  sortOrder: 'newest' | 'oldest' | 'title' | 'duration' = 'newest',
+): Track[] {
+  let list: Track[];
+  if (selectedReleaseGroupMbid) {
+    const releaseTracks = releaseGroupTracks.get(selectedReleaseGroupMbid);
+    if (releaseTracks) {
+      list = releaseTracks;
+    } else {
+      list = allTracks.filter((t) => t.releaseGroupId === selectedReleaseGroupMbid);
+    }
+  } else {
+    list = allTracks;
+  }
+  if (filterReleaseType !== 'all') {
+    list = list.filter((t) => (t.versionTags || []).includes(filterReleaseType));
+  }
+  if (filterText) {
+    const q = filterText.toLowerCase();
+    list = list.filter((t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q));
+  }
+  return [...list].sort((a, b) => {
+    if (sortOrder === 'title') return a.title.localeCompare(b.title);
+    if (sortOrder === 'newest') return (b.publishedAt || '').localeCompare(a.publishedAt || '');
+    if (sortOrder === 'oldest') return (a.publishedAt || '').localeCompare(b.publishedAt || '');
+    if (sortOrder === 'duration') return (b.durationSeconds ?? 0) - (a.durationSeconds ?? 0);
+    return 0;
+  });
 }
 
 export async function renderDiscover(el: HTMLElement, params: URLSearchParams): Promise<void> {
@@ -220,8 +401,9 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         state.releaseGroupTracks.set(rec.releaseGroupMbid, existing);
       }
 
-      // Convert canonical recordings to application tracks for local storage and playlists
-      state.allTracks = entry.recordings.map((rec) => canonicalRecordingToTrack(rec, mbArtist.name));
+      // Convert canonical recordings to application tracks with release provenance
+      const initialTracks = entry.recordings.map((rec) => canonicalRecordingToTrack(rec, mbArtist.name));
+      state.allTracks = aggregateReleaseTracks([], initialTracks);
 
       // Select tracks by canonical recording MBID
       state.selectedIds = new Set(
@@ -365,43 +547,24 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
   }
 
   function visibleTracks(): Track[] {
-    let list: Track[];
-    if (state.selectedReleaseGroupMbid) {
-      const releaseTracks = state.releaseGroupTracks.get(state.selectedReleaseGroupMbid);
-      if (releaseTracks) {
-        list = releaseTracks;
-      } else {
-        list = state.allTracks.filter((t) => t.releaseGroupId === state.selectedReleaseGroupMbid);
-      }
-    } else {
-      list = state.allTracks;
-    }
-    if (state.filterReleaseType !== 'all') {
-      list = list.filter((t) => (t.versionTags || []).includes(state.filterReleaseType));
-    }
-    if (state.filterText) {
-      const q = state.filterText.toLowerCase();
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q));
-    }
-    return [...list].sort((a, b) => {
-      if (state.sortOrder === 'title') return a.title.localeCompare(b.title);
-      if (state.sortOrder === 'newest') return (b.publishedAt || '').localeCompare(a.publishedAt || '');
-      if (state.sortOrder === 'oldest') return (a.publishedAt || '').localeCompare(b.publishedAt || '');
-      if (state.sortOrder === 'duration') return (b.durationSeconds ?? 0) - (a.durationSeconds ?? 0);
-      return 0;
-    });
+    return filterVisibleTracks(
+      state.allTracks,
+      state.releaseGroupTracks,
+      state.selectedReleaseGroupMbid,
+      state.filterReleaseType,
+      state.filterText,
+      state.sortOrder,
+    );
   }
 
   async function selectReleaseGroup(rgId: string): Promise<void> {
     if (state.selectedReleaseGroupMbid === rgId) {
-      state.selectedReleaseGroupMbid = undefined;
-      state.viewMode = 'discography';
+      handleDiscoveryAction(state, { type: 'select_discography' });
       renderResults();
       return;
     }
 
-    state.selectedReleaseGroupMbid = rgId;
-    state.viewMode = 'tracks';
+    handleDiscoveryAction(state, { type: 'select_release_group', releaseGroupId: rgId });
 
     const rg = state.releaseGroups.find((g) => g.id === rgId);
     const rgTitle = rg?.title ?? 'Release';
@@ -428,12 +591,8 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
         );
         state.releaseGroupTracks.set(rgId, tracks);
 
-        // Aggregate into allTracks if not already present
-        for (const t of tracks) {
-          if (!state.allTracks.some((existing) => existing.id === t.id && existing.releaseGroupId === t.releaseGroupId)) {
-            state.allTracks.push(t);
-          }
-        }
+        // Aggregate into allTracks preserving one row per recording MBID and provenance
+        state.allTracks = aggregateReleaseTracks(state.allTracks, tracks);
       } catch (err) {
         state.releaseGroupTracks.set(rgId, []);
         toast(`Failed to load recordings for ${rgTitle}: ${(err as Error).message}`, 'error');
@@ -514,7 +673,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:18px">
         <span class="badge">${state.releaseGroups.length} release groups</span>
-        <span class="badge teal">${state.recordings.length} canonical recordings</span>
+        <span class="badge teal">${state.allTracks.length} canonical recordings</span>
         <span class="badge muted" title="Recordings with verified YouTube stream">${verifiedStreamsCount} streams mapped</span>
         <span class="badge muted" title="Recordings awaiting stream mapping">${unmappedStreamsCount} unmapped</span>
         ${[...typeCounts.entries()].map(([type, count]) => `<span class="badge muted">${escapeHtml(type)}: ${count}</span>`).join('')}
@@ -523,11 +682,11 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     <section style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
       <div style="display:flex;gap:6px">
-        <button class="btn ${state.viewMode === 'discography' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="d-mode-disco">
+        <button class="btn ${state.viewMode === 'discography' && !state.selectedReleaseGroupMbid ? 'btn-primary' : 'btn-ghost'} btn-sm" id="d-mode-disco">
           ${icon('grid', 14)} Discography (${state.releaseGroups.length})
         </button>
-        <button class="btn ${state.viewMode === 'tracks' ? 'btn-primary' : 'btn-ghost'} btn-sm" id="d-mode-tracks">
-          ${icon('music', 14)} All Tracks (${state.allTracks.length})
+        <button class="btn ${state.viewMode === 'tracks' && !state.selectedReleaseGroupMbid ? 'btn-primary' : 'btn-ghost'} btn-sm" id="d-mode-tracks">
+          ${icon('music', 14)} All Tracks (${state.selectedReleaseGroupMbid ? state.allTracks.length : tracks.length})
         </button>
       </div>
 
@@ -547,7 +706,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
       ${
         state.selectedReleaseGroupMbid
-          ? `<button class="chip active" id="d-clear-rg" title="Clear release group focus">Focused: ${escapeHtml(state.releaseGroups.find((g) => g.id === state.selectedReleaseGroupMbid)?.title ?? '')} ✕</button>`
+          ? `<button class="chip active" id="d-clear-rg" title="Clear release group focus">Focused: ${escapeHtml(state.releaseGroups.find((g) => g.id === state.selectedReleaseGroupMbid)?.title ?? '')} (${tracks.length}) ✕</button>`
           : ''
       }
 
@@ -560,11 +719,11 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     // Hook up view mode toggles
     wrap.querySelector('#d-mode-disco')?.addEventListener('click', () => {
-      state.viewMode = 'discography';
+      handleDiscoveryAction(state, { type: 'select_discography' });
       renderResults();
     });
     wrap.querySelector('#d-mode-tracks')?.addEventListener('click', () => {
-      state.viewMode = 'tracks';
+      handleDiscoveryAction(state, { type: 'select_all_tracks' });
       renderResults();
     });
 
@@ -577,7 +736,7 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     // Clear release group focus
     wrap.querySelector('#d-clear-rg')?.addEventListener('click', () => {
-      state.selectedReleaseGroupMbid = undefined;
+      handleDiscoveryAction(state, { type: 'clear_release_focus' });
       renderResults();
     });
 
@@ -725,11 +884,12 @@ export async function renderDiscover(el: HTMLElement, params: URLSearchParams): 
 
     // RENDER TRACKS LIST
     if (!tracks.length) {
+      const isReleaseFocused = Boolean(state.selectedReleaseGroupMbid);
       contentEl.innerHTML = `
         <div class="clay clay-sm empty-state" style="padding:34px">
           <div class="glyph">🎧</div>
-          <h3>No canonical recordings match these filters</h3>
-          <p>Try resetting the release type or clearing your title search.</p>
+          <h3>${isReleaseFocused ? 'No recordings found for this release' : 'No canonical recordings match these filters'}</h3>
+          <p>${isReleaseFocused ? 'This release group does not have indexed recordings in MusicBrainz.' : 'Try resetting the release type or clearing your title search.'}</p>
         </div>`;
       return;
     }

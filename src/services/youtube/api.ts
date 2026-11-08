@@ -37,6 +37,14 @@ export interface YouTubeChannel {
   country?: string;
 }
 
+/** Optional link-out telemetry exposed without requiring YouTube to be used. */
+export interface YouTubeIntegrationState {
+  apiKeyConfigured: boolean;
+  clientIdConfigured: boolean;
+  linkOutCount: number;
+  apiCallsMade: number;
+}
+
 export class YouTubeApiError extends Error {
   constructor(
     message: string,

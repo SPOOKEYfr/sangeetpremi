@@ -84,6 +84,13 @@ Access saved artists, starred tracks, and complete discovery session history sto
   <img src="docs/assets/library-preview.png" alt="SangeetPremi Library Preview" width="100%" />
 </p>
 
+### Settings & Credential Transparency
+Manage discovery baselines, theme preferences, local JSON backups, and secure on-device YouTube API keys with quota monitoring.
+
+<p align="center">
+  <img src="docs/assets/settings-preview.png" alt="SangeetPremi Settings Preview" width="100%" />
+</p>
+
 ---
 
 ## Features

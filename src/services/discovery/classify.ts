@@ -1,21 +1,11 @@
 /**
  * Track classification: assigns a DiscoveryCategory + ArtistRole from
  * title/description/channel signals. Pure functions — unit tested.
+ * MusicBrainz-first: no viewCount, no relevanceScore with viewCount factor,
+ * no inferred category/role from YouTube aggregation.
  */
 import type { ArtistRole, DiscoveryCategory, Track } from '../../types';
 import { extractVersionTags, normalizeArtistName, normalizeText } from '../../utils/normalize';
-
-const SOUNDTRACK_RE = /\b(official video|official audio|lyrical video|from the film|from the movie|movie|film|soundtrack|ost)\b|\(from\b[^)]*\)|\bfrom\s+["“][^"”]+["”]\b/i;
-const COLLAB_RE = /\b(x|&|feat\.?|ft\.?|with)\b\s+[A-Z][\w'’.-]+/;
-const FEATURED_RE = /\b(feat\.?|ft\.?|featuring)\b/i;
-const CHANNEL_TOPIC_RE = /\b(topic|vevo)\b/i;
-
-interface ClassifyInput {
-  title: string;
-  description: string;
-  channelTitle?: string;
-  artistName: string;
-}
 
 /** Does the text mention the artist name (normalized)? */
 export function mentionsArtist(text: string, artistName: string): boolean {
@@ -25,7 +15,8 @@ export function mentionsArtist(text: string, artistName: string): boolean {
   return norm.includes(artist);
 }
 
-export function classifyCategory(input: ClassifyInput): DiscoveryCategory {
+/** MusicBrainz-first: categorize without YouTube viewCount/aggregation. */
+export function classifyCategory(input: { title: string; description: string }): DiscoveryCategory {
   const t = `${input.title} ${input.description}`;
   const tags = extractVersionTags(input.title);
 
@@ -35,61 +26,51 @@ export function classifyCategory(input: ClassifyInput): DiscoveryCategory {
   if (tags.includes('unplugged')) return 'unplugged';
   if (tags.includes('acoustic')) return 'acoustic';
   if (tags.includes('live')) return 'live';
-  if (SOUNDTRACK_RE.test(input.title) || /\b(movie|film|soundtrack)\b/i.test(input.title)) return 'soundtrack';
+  if (/\b(movie|film|soundtrack)\b/i.test(input.title)) return 'soundtrack';
   if (tags.includes('duet')) return 'duet';
-  if (COLLAB_RE.test(input.title) && !FEATURED_RE.test(input.title)) return 'collaboration';
-  if (FEATURED_RE.test(input.title)) return 'featured';
-  if (/\bsingle\b/i.test(input.title)) return 'single';
-  if (/\balbum\b/i.test(input.title)) return 'album';
+  if (/\b(x|&|feat\.?|ft\.?|with)\b\s+[A-Z][\w'’.-]+/i.test(input.title) && !/\b(feat\.?|ft\.?|featuring)\b/i.test(input.title)) return 'collaboration';
   return 'official';
 }
 
 /**
- * Determine the artist's role in this track.
- * Conservative by design: we never claim "primary" unless the artist is
- * named in the title or the channel matches.
+ * Determine the artist's role — conservative, no YouTube inference.
+ * Per policy: no inferred category/role from YouTube data.
  */
-export function classifyRole(input: ClassifyInput, channelId?: string, artistChannelId?: string): ArtistRole {
+export function classifyRole(input: { title: string; description: string; artistName: string }, channelId?: string, artistChannelId?: string): ArtistRole {
+  // Primary only if channel explicitly matches
   if (artistChannelId && channelId && artistChannelId === channelId) return 'primary';
-  if (CHANNEL_TOPIC_RE.test(input.channelTitle ?? '')) return 'primary';
-  if (FEATURED_RE.test(input.title)) return 'featured';
-  if (SOUNDTRACK_RE.test(input.title) && mentionsArtist(input.title, input.artistName)) return 'playback';
+  // Featured if title says "feat"
+  if (/feat\.?/i.test(input.title)) return 'featured';
+  // Playback if soundtrack and artist mentioned in title
+  if (/\b(movie|film|soundtrack)\b/i.test(input.title) && mentionsArtist(input.title, input.artistName)) return 'playback';
+  // Primary if artist mentioned in title or description
   if (mentionsArtist(input.title, input.artistName) || mentionsArtist(input.description, input.artistName)) return 'primary';
   return 'other';
 }
 
-/** Relevance score 0..1 — used to rank and to filter weak candidates. */
-export function relevanceScore(input: ClassifyInput & { channelId?: string; viewCount?: number }, artistChannelId?: string): number {
+/** Relevance score 0..1 — no viewCount factor per policy. */
+export function relevanceScore(input: { title: string; description: string; channelId?: string; artistName: string }, artistChannelId?: string): number {
   let score = 0;
   const titleMentions = mentionsArtist(input.title, input.artistName);
   const descMentions = mentionsArtist(input.description, input.artistName);
   if (titleMentions) score += 0.5;
   if (descMentions) score += 0.15;
   if (artistChannelId && input.channelId === artistChannelId) score += 0.25;
-  else if (CHANNEL_TOPIC_RE.test(input.channelTitle ?? '')) score += 0.2;
-  if (input.viewCount && input.viewCount > 100_000) score += 0.1;
+  // Removed viewCount factor per III.C.6
   if (titleMentions && classifyCategory(input) !== 'other') score += 0.05;
   return Math.min(1, score);
 }
 
-/** Convenience: classify a raw API video into a partial Track. */
+/** Convenience: classify a raw video into category/role/versionTags. */
 export function classifyVideo(
-  video: { videoId: string; title: string; description: string; channelId: string; channelTitle: string; thumbnail?: string; publishedAt?: string; durationSeconds?: number; viewCount?: number },
+  video: { videoId?: string; title: string; description: string; artistName?: string },
   artistName: string,
-  artistChannelId?: string,
 ): Pick<Track, 'category' | 'role' | 'versionTags'> & { score: number } {
-  const input: ClassifyInput & { channelId?: string; viewCount?: number } = {
-    title: video.title,
-    description: video.description,
-    channelTitle: video.channelTitle,
-    channelId: video.channelId,
-    artistName,
-    viewCount: video.viewCount,
-  };
+  const input = { title: video.title, description: video.description, artistName };
   return {
     category: classifyCategory(input),
-    role: classifyRole(input, video.channelId, artistChannelId),
+    role: classifyRole(input),
     versionTags: extractVersionTags(video.title),
-    score: relevanceScore(input, artistChannelId),
+    score: relevanceScore(input),
   };
 }

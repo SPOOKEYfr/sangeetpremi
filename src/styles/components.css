@@ -109,6 +109,174 @@
 .fade-in { animation: fadeIn var(--dur-med) var(--ease); }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+.btn:focus-visible, .chip:focus-visible, .input:focus-visible, .select:focus-visible, .textarea:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
 .empty-state { text-align: center; padding: var(--sp-6) var(--sp-4); color: var(--text-3); }
 .empty-state .glyph { font-size: 44px; margin-bottom: var(--sp-3); filter: grayscale(0.2); }
 .empty-state h3 { color: var(--text-2); margin-bottom: var(--sp-2); }
+
+/* Layout & responsive primitives */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.app-sidebar {
+  width: 236px;
+  flex: none;
+  margin: 18px 0 18px 18px;
+  padding: 22px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: 18px;
+  height: calc(100vh - 36px);
+  border-radius: var(--r-xl);
+}
+.app-view {
+  flex: 1;
+  padding: 26px 34px 60px;
+  min-width: 0;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 26px;
+}
+.card-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+.playlists-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+.discography-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.release-group-card {
+  padding: 14px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.release-group-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(167, 139, 242, 0.4);
+}
+.release-group-card.active {
+  outline: 2px solid var(--accent-violet);
+}
+
+.disambiguation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: transform var(--dur-fast), border-color var(--dur-fast);
+}
+.disambiguation-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(167, 139, 242, 0.5);
+}
+
+/* Skeleton placeholders */
+.track-skeleton {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  align-items: center;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+.track-skeleton .sk-thumb {
+  width: 104px;
+  height: 58px;
+  border-radius: 12px;
+  flex: none;
+}
+.track-skeleton .sk-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.track-skeleton .sk-title {
+  width: 58%;
+  height: 15px;
+  border-radius: 6px;
+}
+.track-skeleton .sk-sub {
+  width: 34%;
+  height: 12px;
+  border-radius: 6px;
+}
+.track-skeleton .sk-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex: none;
+}
+
+/* Media queries for responsive layouts (dashboard & sidepanel) */
+@media (max-width: 860px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .app-sidebar {
+    width: auto;
+    margin: 12px 14px 0;
+    height: auto;
+    position: static;
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+  }
+  .app-sidebar #nav {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .app-sidebar .sidebar-footer {
+    display: none;
+  }
+  .app-view {
+    padding: 18px 16px 50px;
+  }
+  .playlists-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 920px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .card-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}

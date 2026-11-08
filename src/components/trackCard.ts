@@ -1,57 +1,144 @@
-/** Track card / row renderer shared by discovery, library and playlist views. */
+/**
+ * Canonical Track Card & Row renderer.
+ * Designed for MusicBrainz canonical recordings, Cover Art Archive artwork,
+ * release type tags, and honest YouTube playback status.
+ */
 import type { Track } from '../types';
-import { DISCOVERY_CATEGORIES } from '../types';
 import { formatDuration } from '../utils/normalize';
-import { watchUrl } from '../utils/sanitize';
-import { escapeHtml } from '../utils/sanitize';
+import { escapeHtml, watchUrl } from '../utils/sanitize';
 import { icon } from './icons';
+import { hasVerifiedRecordingStream, isVerifiedYouTubeId } from '../features/discovery/musicbrainzModel';
 
-export function categoryLabel(c: Track['category']): string {
-  return DISCOVERY_CATEGORIES.find((x) => x.id === c)?.label ?? c;
+export { isVerifiedYouTubeId, hasVerifiedRecordingStream };
+
+export interface TrackCardOptions {
+  selected?: boolean;
+  showCheckbox?: boolean;
+  onToggle?: (id: string) => void;
+  extra?: string;
+  verifiedStream?: boolean;
 }
 
-export function trackCard(t: Track, opts: { selected?: boolean; showCheckbox?: boolean; onToggle?: (id: string) => void; extra?: string } = {}): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'clay clay-sm track-card fade-in';
-  el.dataset.videoId = t.videoId;
-  el.style.cssText = 'display:flex;gap:14px;padding:12px;align-items:center;transition:transform .15s, box-shadow .15s;';
-  if (opts.selected) el.style.outline = '2px solid var(--accent)';
-
+/** Generates HTML string representation for a canonical track card. */
+export function trackCardHtml(t: Track, opts: TrackCardOptions = {}): string {
   const check = opts.showCheckbox
-    ? `<button class="track-check" title="Select" style="width:22px;height:22px;border-radius:8px;border:1.5px solid ${opts.selected ? 'var(--accent)' : 'rgba(255,255,255,.2)'};background:${opts.selected ? 'var(--accent)' : 'transparent'};color:#14121f;display:flex;align-items:center;justify-content:center;flex:none">${opts.selected ? icon('check', 13) : ''}</button>`
+    ? `<button class="track-check" role="checkbox" aria-checked="${opts.selected ? 'true' : 'false'}" aria-label="Select ${escapeHtml(t.title)}" title="Select track" style="width:22px;height:22px;border-radius:8px;border:1.5px solid ${opts.selected ? 'var(--accent-violet)' : 'rgba(255,255,255,.2)'};background:${opts.selected ? 'var(--accent-violet)' : 'transparent'};color:#14121f;display:flex;align-items:center;justify-content:center;flex:none">${opts.selected ? icon('check', 13) : ''}</button>`
     : '';
 
-  el.innerHTML = `
+  // A valid YouTube video ID is NOT proof of a verified recording relationship.
+  // Only display "Watch on YouTube" when a genuine verified relationship exists.
+  const isStreamVerified = opts.verifiedStream ?? hasVerifiedRecordingStream(t);
+  const ytVideoId = t.youtubeVideoId ?? t.videoId;
+
+  // Album artwork thumbnail with clean fallback (NO inline onerror to comply with MV3 CSP)
+  const thumbHtml = t.thumbnail
+    ? `<img src="${escapeHtml(t.thumbnail)}" alt="" width="54" height="54" loading="lazy" class="track-thumb-img" style="border-radius:10px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3);flex:none"/>`
+    : `<div class="album-art-fallback" style="width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none">${icon('disc', 22)}</div>`;
+
+  // Canonical tags (e.g. 'Album', '2000', 'Single') - filter out internal verified-stream marker
+  const tags = (t.versionTags && t.versionTags.length ? t.versionTags : (t.category ? [t.category] : []))
+    .filter((tag) => Boolean(tag) && tag !== 'verified-stream');
+  const tagsHtml = tags
+    .map((tag) => `<span class="badge muted" style="font-size:11px">${escapeHtml(tag)}</span>`)
+    .join('');
+
+  // YouTube navigation controls: Honest "Unmapped" state with NO search fallback
+  let streamActionHtml: string;
+  if (isStreamVerified && (t.youtubeUrl || ytVideoId)) {
+    const destinationUrl = t.youtubeUrl ?? watchUrl(ytVideoId!);
+    streamActionHtml = `
+      <a class="btn btn-ghost btn-sm yt-stream-btn" href="${escapeHtml(destinationUrl)}" target="_blank" rel="noopener" title="Stream verified YouTube video in new tab" aria-label="Stream verified video for ${escapeHtml(t.title)} on YouTube">
+        <span style="color:#ff5555;display:flex;align-items:center">${icon('youtube', 15)}</span>
+        <span style="font-size:12px">Watch ↗</span>
+      </a>`;
+  } else {
+    // Honest unavailable state with NO search fallback
+    streamActionHtml = `
+      <span class="badge muted" title="No verified YouTube stream mapping exists for this canonical recording" style="font-size:10.5px;padding:3px 8px;opacity:0.85">Unmapped</span>`;
+  }
+
+  return `
     ${check}
-    <div style="position:relative;flex:none">
-      <img src="${escapeHtml(t.thumbnail ?? '')}" alt="" width="104" height="58" loading="lazy"
-        style="border-radius:12px;object-fit:cover;box-shadow:var(--shadow-raised-sm);background:var(--bg-3)"
-        onerror="this.style.visibility='hidden'"/>
-      ${t.durationSeconds ? `<span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:10.5px;padding:1px 6px;border-radius:6px">${formatDuration(t.durationSeconds)}</span>` : ''}
+    <div style="position:relative;flex:none;width:54px;height:54px;display:flex;align-items:center;justify-content:center">
+      ${thumbHtml}
     </div>
     <div style="flex:1;min-width:0">
-      <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(t.title)}</div>
-      <div style="color:var(--text-3);font-size:12px;margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span>${escapeHtml(t.channelTitle ?? t.artist)}</span>
-        <span class="badge muted">${escapeHtml(categoryLabel(t.category))}</span>
-        ${t.isDuplicate ? '<span class="badge warm">duplicate</span>' : ''}
-        ${t.versionTags.map((v) => `<span class="badge teal">${escapeHtml(v)}</span>`).join('')}
+      <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</div>
+      <div style="color:var(--text-3);font-size:12px;margin-top:2px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--text-2);font-weight:500">${escapeHtml(t.artist)}</span>
+        ${t.channelTitle ? `<span style="color:var(--text-3)">· ${escapeHtml(t.channelTitle)}</span>` : ''}
+        ${tagsHtml}
+        ${t.durationSeconds ? `<span style="color:var(--text-3)">· ${formatDuration(t.durationSeconds)}</span>` : ''}
       </div>
     </div>
-    <div style="display:flex;gap:6px;flex:none">
+    <div style="display:flex;gap:8px;flex:none;align-items:center">
       ${opts.extra ?? ''}
-      <a class="btn btn-ghost btn-sm" href="${watchUrl(t.videoId)}" target="_blank" rel="noopener" title="Open on YouTube">${icon('external', 15)}</a>
+      <div class="track-stream-action" style="display:flex;align-items:center">
+        ${streamActionHtml}
+      </div>
     </div>`;
+}
 
-  if (opts.showCheckbox) {
-    el.querySelector('.track-check')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      opts.onToggle?.(t.videoId);
+export function trackCard(t: Track, opts: TrackCardOptions = {}): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'clay clay-sm track-card fade-in';
+  el.dataset.id = t.id;
+  el.dataset.videoId = t.youtubeVideoId ?? t.videoId ?? t.id;
+  el.setAttribute('role', 'article');
+  el.setAttribute('aria-label', `${t.title} by ${t.artist}`);
+  el.style.cssText =
+    'display:flex;gap:14px;padding:12px 14px;align-items:center;transition:transform .15s, box-shadow .15s;';
+  if (opts.selected) el.style.outline = '2px solid var(--accent-violet)';
+
+  el.innerHTML = trackCardHtml(t, opts);
+
+  // Proper event-based image error handler (MV3 CSP compliant)
+  const img = el.querySelector('.track-thumb-img') as HTMLImageElement | null;
+  if (img) {
+    img.addEventListener('error', () => {
+      const fallback = document.createElement('div');
+      fallback.className = 'album-art-fallback';
+      fallback.style.cssText =
+        'width:54px;height:54px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-3),var(--bg-2));color:var(--accent-violet);flex:none';
+      fallback.innerHTML = icon('disc', 22);
+      img.replaceWith(fallback);
     });
   }
+
+  if (opts.showCheckbox) {
+    const checkBtn = el.querySelector('.track-check') as HTMLButtonElement | null;
+    checkBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      opts.onToggle?.(t.id);
+    });
+    checkBtn?.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        opts.onToggle?.(t.id);
+      }
+    });
+  }
+
   el.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('a,button')) return;
-    opts.onToggle?.(t.videoId);
+    opts.onToggle?.(t.id);
   });
+
+  return el;
+}
+
+/** Animated skeleton row for track lists matching square album art. */
+export function trackSkeleton(): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'clay clay-sm track-skeleton';
+  el.innerHTML = `
+    <div class="skeleton sk-thumb" style="width:54px;height:54px;border-radius:10px;flex:none"></div>
+    <div class="sk-info">
+      <div class="skeleton sk-title" style="width:50%;height:14px"></div>
+      <div class="skeleton sk-sub" style="width:30%;height:12px"></div>
+    </div>
+    <div class="skeleton sk-btn" style="width:72px;height:30px;border-radius:8px;flex:none"></div>
+  `;
   return el;
 }

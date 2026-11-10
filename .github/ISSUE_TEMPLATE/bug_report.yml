@@ -1,0 +1,108 @@
+name: Bug Report
+description: Report a reproducible bug or unexpected behavior in SangeetPremi
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please ensure you have tested with the latest code from `main` and checked for existing issues before filing.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Open SangeetPremi dashboard at '#/discover'
+        2. Enter query '...'
+        3. Click 'Discover'
+        4. Observe error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+      placeholder: The artist should be disambiguated and tracks classified...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser Environment
+      description: Which browser are you running the extension in?
+      options:
+        - Google Chrome
+        - Brave Browser
+        - Microsoft Edge
+        - Other Chromium-based browser
+        - Firefox (unsupported / developer build)
+    validations:
+      required: true
+
+  - type: input
+    id: browser-version
+    attributes:
+      label: Browser Version
+      description: e.g., Chrome 128.0, Brave 1.69
+      placeholder: "128.0.0.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: installation-type
+    attributes:
+      label: Installation Type
+      description: How did you install SangeetPremi?
+      options:
+        - Built from source (npm run build -> Load unpacked)
+        - Packaged zip release (dist)
+        - Dev server (npm run dev)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: youtube-api-status
+    attributes:
+      label: YouTube Data API Status
+      description: Is a valid YouTube Data API v3 key configured in Settings?
+      options:
+        - Yes, personal API key configured and active
+        - Yes, but daily quota may have been exceeded
+        - No API key configured
+        - Not applicable / UI-only issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console Logs / Error Output
+      description: Please copy and paste any errors from the Chrome DevTools console.
+      render: shell
+      placeholder: Paste console output or stack trace here...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklists
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and verified this is not a duplicate.
+          required: true
+        - label: I have verified that no sensitive information (API keys, OAuth tokens) is included in this report.
+          required: true
